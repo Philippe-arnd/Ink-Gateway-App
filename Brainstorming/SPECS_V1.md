@@ -2,94 +2,184 @@
 
 ## 1. Project Overview
 
-*   **Name:** Ink-Gateway Web App
-*   **Objective:** A paid web platform for writing novels and short stories, assisted by AI.
-*   **Target Audience:** Writers seeking a robust text editor with versioning capabilities and AI assistance (Claude Code / Gemini).
+- **Name:** Ink-Gateway Web App
+- **Objective:** A paid web platform for writing novels and short stories, assisted by AI (Claude).
+- **Foundation:** Builds upon the existing `ink-gateway` Rust CLI and `ink-gateway-mcp` server.
+- **Launch:** Closed beta with 5 non-paying users, then Stripe-gated public access.
+- **Target Concurrent Users:** Peaks of 50 users. Average book: 300 pages.
 
-## 2. Validated Technical Choices for V1
+---
 
-*   **Front-end:** Text editor (to be developed, CKEditor 5 recommended).
-*   **Back-end Core:** Rust (Existing Ink-Gateway CLI, MCP to be integrated).
-*   **User Authentication:** PostgreSQL.
-*   **User Document Versioning Management:**
-    *   **Document Content:** Stored on Scaleway S3 (objects versioned by timestamp).
-    *   **Version Metadata (timestamps, doc ID, user ID, S3 path):** Stored in PostgreSQL.
-*   **AI Integration:** Via Claude Code or Gemini API keys, orchestrated by the Rust MCP.
+## 2. Technical Stack
 
-## 3. V1 Constraints and Performance Objectives
+| Layer | Technology |
+|---|---|
+| Backend API | Rust (Axum) |
+| ORM | Diesel (PostgreSQL) |
+| Frontend | React + Vite + TypeScript |
+| Editor | CKEditor 5 (minimal, prose-only config) |
+| Database | PostgreSQL |
+| Object Storage | Scaleway S3 (`aws-sdk-rust`) |
+| Autosave Buffer + AI Queue | Redis |
+| AI Orchestration | `ink-gateway-mcp` (Anthropic MCP standard) |
+| AI Provider | Claude only (Haiku + Sonnet) |
+| Payments | Stripe |
+| Deployment | Coolify on VPS (Docker) |
 
-*   **Target Concurrent Users:** Peaks of 50 users.
-*   **Average Book Size:** 300 pages.
-*   **User Session Activity:** 5 pages modified/produced per session.
+---
 
-## 4. Key Areas to Deepen and Technical Challenges
+## 3. Architecture & Data Flow
 
-*   **Diff Management:** Implement backend logic (potentially within the Rust CLI) to calculate and present differences between two document versions, providing a user experience similar to a "git diff" but without the underlying complexity.
-*   **Scaleway S3 Costs:** Evaluate the financial impact of object storage and requests (PUT/GET) for a volume of 50 users x 300 pages x N versions. Optimize automatic save frequency.
-*   **Save Latency:** Ensure that the process of saving to S3 and updating PostgreSQL does not introduce noticeable latency that would degrade the writer's experience. Optimize I/O.
-*   **CLI/MCP Orchestration:** Precisely define how the front-end and back-end will interact with the Rust CLI (for saving/reading) and the Rust MCP (for AI calls). Manage queues for AI requests.
-*   **S3 Permissions:** Implement a robust security policy on Scaleway S3 to ensure users can only access their own documents.
-*   **Editor Features:** What specific features (formatting, chaptering, comments) will be supported by the text editor to effectively integrate with the versioning system and AI.
+```
+[React + CKEditor 5]
+        │
+        │ HTTP (JWT auth)
+        ▼
+[Rust API — Axum]
+        │
+        ├──► [PostgreSQL]  — users, sessions, version metadata, token quotas, billing
+        │
+        ├──► [Scaleway S3] — document content (explicit saves only, one object per version)
+        │
+        ├──► [Redis]       — 30s autosave buffer + AI request queue
+        │
+        └──► [ink-gateway-mcp]
+                    │
+                    ├── quota check → PostgreSQL
+                    └── Claude API (Haiku / Sonnet)
+```
 
-## 5. Backend and AI Technical Components (Proposals)
+### Request Flows
 
-*   **Rust Web Framework (API):** Actix-web or Axum (recommended choice for performance and security).
-*   **Rust ORM for PostgreSQL:** Diesel (for type-safe and efficient DB interaction).
-*   **Asynchronous Task Queue (for AI tasks):** Redis (for asynchronous AI request management and smooth UX).
-*   **Rust S3 Client:** `rusoto_s3` or `aws-sdk-rust` (for Scaleway S3 integration).
-*   **AI Orchestration:** The Rust MCP (Message Control Protocol) will be at the heart of the interaction with Claude/Gemini.
+**Autosave (every 30s):**
+Frontend → API → Redis (buffer only, no S3 write)
 
-## 6. V1 Implementation Plan (Phased)
+**Explicit Save:**
+Frontend → API → S3 (new versioned object) + PostgreSQL (version metadata row)
 
-### Phase 1: Robust Foundations ("Core Gameplay")
+**AI Request:**
+Frontend → API → Redis queue → MCP → quota check → Claude API → result → API → Frontend
 
-1.  **Set up the Rust Backend API:**
-    *   Choose and configure Actix-web/Axum.
-    *   Define basic endpoints (authentication, document creation/reading/saving).
-2.  **PostgreSQL and Authentication Integration:**
-    *   Set up the PostgreSQL database.
-    *   Use Diesel to manage users and their sessions.
-    *   Implement a robust authentication system (e.g., JWT).
-3.  **S3 Storage Management:**
-    *   Configure the Rust S3 client for Scaleway.
-    *   Implement logic for saving and retrieving documents (one version per S3 object, metadata in PG).
+---
 
-### Phase 2: The "Story Mode" (Editor and UX)
+## 4. Document Model
 
-1.  **Front-end Development (CKEditor) :**
-    *   Integrate CKEditor 5.
-    *   Implement basic editing functions, automatic/manual saving.
-2.  **Version History Display:**
-    *   Develop the user interface to list document versions (via PG metadata).
-    *   Implement the function to restore an older version.
-3.  **Basic Diff Management:**
-    *   Display a simple comparison between two text versions (can be a raw diff initially, improved later).
+The web app maps the CLI's file-based book structure to a relational model:
 
-### Phase 3: The "AI Co-pilot" (AI and Collaboration)
+| CLI Concept | Web Equivalent |
+|---|---|
+| Book repository | `documents` table + S3 prefix |
+| Soul.md, Outline.md, Characters.md, Lore.md | Structured fields or sub-documents per book |
+| Full_Book.md | Latest S3 object for the document |
+| Session open/close | Autosave buffer flush + explicit save |
+| Rollback | Version restore (creates new forward version) |
+| `<!-- INK: [instruction] -->` comments | AI request trigger in editor |
 
-1.  **Rust MCP and AI Queue Integration:**
-    *   Connect the Rust MCP to the backend via internal calls or a messaging system.
-    *   Set up Redis as a queue for AI requests.
-    *   Implement the MCP's logic to send requests to Claude/Gemini APIs and handle responses.
-2.  **Initial AI Features:**
-    *   Implement a simple feature like "suggestion generation" or "style revision" via AI.
-    *   Integrate AI results into the editor (e.g., comments, highlights, insertion suggestions).
-3.  **Comments and Highlighting Management (CKEditor):**
-    *   Use CKEditor plugins for comments and highlighting, linking them to the user authentication and versioning system.
+---
 
-## 7. Connecting to the Claude or Gemini API
+## 5. Versioning Rules
 
-The core of the interaction with the Claude or Gemini APIs will be managed by your **Rust MCP (Message Control Protocol)**.
+- **Autosave:** Every 30 seconds → written to Redis/PostgreSQL buffer. Never to S3.
+- **Explicit save:** Creates a new timestamped S3 object + a metadata row in PostgreSQL.
+- **Version restore:** Copies the old version's content into a new S3 object (forward-only history, no mutation).
+- **Retention:** Keep last 20 versions per document. Users can **pin** versions to exempt them from cleanup. A background job purges unpinned versions beyond the limit.
 
-*   **The MCP's Role:** The MCP will act as an "intelligent proxy" or "orchestrator" for all AI requests.
-*   **Workflow:**
-    1.  The front-end sends a request for an AI task (e.g., "generate next part", "revise this paragraph") to your Rust API.
-    2.  The API places this request in the **Redis queue**.
-    3.  The **Rust MCP**, listening to the queue, retrieves the task.
-    4.  The MCP uses the **API keys** provided by the user (or system keys if it's an included service) to call the Claude or Gemini API. For this, it will use a Rust HTTP client (like `reqwest`) and construct JSON requests according to the model's API documentation.
-    5.  Once the AI's response is received, the MCP processes it (parses JSON, formats the response).
-    6.  The MCP returns the result (via a "callback" to the API, another queue, or by directly updating the DB/S3 if it's a background task). The API can then notify the front-end.
-*   **API Key Management:** Claude/Gemini API keys should be stored securely (e.g., encrypted in PostgreSQL linked to the user, or as environment variables for system keys). The MCP will access these keys when making the call.
-*   **Rate Limit and Cost Management:** The MCP will also be responsible for managing AI API "rate limits" and potentially tracking usage for user billing.
+---
 
-This plan allows for decoupling AI calls from the main API, ensuring the resilience and scalability of the entire system, even when facing variable response times from AI models.
+## 6. Editor (CKEditor 5)
+
+CKEditor 5 is configured in **minimal prose mode**:
+- Plain text input with chapter/section structure navigation only.
+- No formatting toolbar (no bold, italic, headings, track changes, inline comments).
+- Rationale: preserving clean, consistent content that the MCP engine can reliably process.
+
+---
+
+## 7. AI Integration
+
+### Model Routing (via MCP)
+| Task Type | Model |
+|---|---|
+| Short suggestions, autocomplete | Claude Haiku |
+| Full rewrites, style analysis, generation | Claude Sonnet |
+
+The MCP routes requests by task type — never defaults to Sonnet for lightweight tasks.
+
+### Token Quota System
+- Each user has a monthly token budget stored in PostgreSQL.
+- The MCP checks the remaining quota **before every Claude API call**.
+- If quota is exhausted, the request is rejected with a clear user-facing message.
+- Usage is logged per call (model, tokens in/out, timestamp) for billing and abuse tracking.
+- No user-provided API keys — the platform absorbs AI costs within the quota model.
+
+### Cost Target
+- Platform cost per page: ≤ €0.01
+- User price: €0.10–€0.20 per page
+- Achieved by: Haiku for routine tasks, Sonnet rate-limited, quota enforcement.
+
+---
+
+## 8. Authentication & Billing
+
+- **Auth:** JWT-based session tokens. User records in PostgreSQL.
+- **Billing:** Stripe integration for subscription management.
+- **Beta:** Closed beta (5 users, no payment). PostgreSQL schema is billing-ready from day one.
+
+### PostgreSQL Schema (key tables)
+- `users` — id, email, password_hash, stripe_customer_id, created_at
+- `subscriptions` — user_id, stripe_subscription_id, status, token_quota_monthly
+- `token_usage` — user_id, model, tokens_in, tokens_out, called_at
+- `documents` — id, user_id, title, created_at, updated_at
+- `versions` — id, document_id, s3_path, created_at, is_pinned, is_restore
+- `autosave_buffer` — document_id, content, saved_at (Redis or PG, flushed on explicit save)
+
+---
+
+## 9. S3 Security
+
+- S3 object paths are namespaced by user ID: `users/{user_id}/documents/{doc_id}/{timestamp}.json`
+- The API enforces ownership checks against PostgreSQL before any S3 read/write.
+- No direct S3 access from the frontend — all operations go through the Rust API.
+
+---
+
+## 10. Deployment
+
+- **Host:** Coolify on a personal VPS.
+- **Containers (Docker Compose):**
+  - `api` — Rust Axum backend
+  - `frontend` — React/Vite (served via Nginx or Coolify static)
+  - `mcp` — ink-gateway-mcp server
+  - `postgres` — PostgreSQL
+  - `redis` — Redis
+- **External:** Scaleway S3 (object storage only, not compute)
+
+---
+
+## 11. Implementation Phases
+
+### Phase 1 — Core Foundations
+1. Rust API (Axum) with JWT authentication.
+2. PostgreSQL setup with Diesel: users, documents, versions, token_usage tables.
+3. Scaleway S3 integration: explicit save and version retrieval.
+4. Redis autosave buffer (30s write, flush on explicit save).
+5. Docker Compose setup for local development and Coolify deployment.
+
+### Phase 2 — Editor & Versioning UI
+1. React + Vite + TypeScript frontend scaffold.
+2. CKEditor 5 integration in minimal prose-only mode.
+3. Chapter/section navigation.
+4. Version history list (from PostgreSQL metadata) + restore flow.
+5. Autosave indicator and explicit save button.
+
+### Phase 3 — AI Co-pilot
+1. Adapt `ink-gateway-mcp` for web: connect to Redis queue, read from API context.
+2. Token quota system: enforcement in MCP, tracking in PostgreSQL.
+3. Model routing: Haiku vs Sonnet by task type.
+4. Initial AI feature: prose generation / continuation triggered from editor.
+5. Result delivery back to editor (streamed or polled).
+
+### Phase 4 — Billing & Launch
+1. Stripe integration: subscription creation, webhook handling, quota assignment.
+2. Usage dashboard for users (tokens remaining, version history).
+3. Beta → public launch.
