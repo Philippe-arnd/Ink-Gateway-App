@@ -1,0 +1,465 @@
+---
+---
+
+<section class="flow-section" id="flow">
+  <div class="flow-inner">
+    <div class="section-label">Architecture</div>
+    <h2 class="section-heading">Human and agent, same repository</h2>
+    <p class="section-sub">
+      Highlight passages you want reworked, set the agent's rules once, and every
+      change lands as a git commit — yours and the agent's, side by side.
+    </p>
+
+    <!-- Horizontal diagram -->
+    <div class="diagram">
+
+      <!-- Human Writer — left -->
+      <div class="node node-human">
+        <div class="node-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="node-name">Human Writer</div>
+        <div class="node-chips">
+          <span class="chip">highlights passages</span>
+          <span class="chip">reviews commits</span>
+        </div>
+      </div>
+
+      <!-- Git Repository — center, smaller -->
+      <div class="node node-git">
+        <div class="node-icon node-icon-git">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="18" r="3"/>
+            <circle cx="6" cy="6" r="3"/>
+            <path d="M13 6h3a2 2 0 0 1 2 2v7"/>
+            <path d="M6 9v12"/>
+          </svg>
+        </div>
+        <div class="node-name">Git Repo</div>
+        <div class="node-sub">source of truth</div>
+      </div>
+
+      <!-- Ink Agent — right -->
+      <div class="node node-agent">
+        <div class="node-icon node-icon-agent">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L17 12l-1.813 1.912a2 2 0 0 0-.475 1.275L13 17l-1.912-1.813A2 2 0 0 0 9.813 14.7L8 13l1.813-1.912A2 2 0 0 0 10.3 9.813L12 8z"/>
+            <path d="M5 3l.5 1.5L7 5l-1.5.5L5 7l-.5-1.5L3 5l1.5-.5z"/>
+            <path d="M19 15l.5 1.5L21 17l-1.5.5L19 19l-.5-1.5L17 17l1.5-.5z"/>
+          </svg>
+        </div>
+        <div class="node-name">Ink Agent</div>
+        <div class="node-chips">
+          <span class="chip chip-indigo">programmable rules</span>
+          <span class="chip chip-indigo">MCP tools</span>
+        </div>
+      </div>
+
+      <!-- SVG connector overlay -->
+      <svg
+        class="connector-svg"
+        viewBox="0 0 900 200"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+        preserveAspectRatio="xMidYMid meet"
+      >
+        <defs>
+          <filter id="glow-i">
+            <feGaussianBlur stdDeviation="2.5" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="glow-f">
+            <feGaussianBlur stdDeviation="2.5" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- Left line: Human ↔ Git -->
+        <path
+          d="M 196 100 L 382 100"
+          fill="none" stroke="#4f46e5" stroke-width="1.5"
+          stroke-dasharray="6 4" opacity="0.35">
+          <animate attributeName="stroke-dashoffset" from="20" to="0" dur="1.1s" repeatCount="indefinite"/>
+        </path>
+        <!-- dot: Human → Git -->
+        <circle r="4" fill="#4f46e5" filter="url(#glow-i)">
+          <animateMotion dur="2.4s" repeatCount="indefinite" calcMode="ease">
+            <mpath href="#path-h-g"/>
+          </animateMotion>
+        </circle>
+        <!-- dot: Git → Human -->
+        <circle r="3" fill="#7c3aed" opacity="0.8">
+          <animateMotion dur="2.8s" repeatCount="indefinite" begin="-1.4s" calcMode="ease">
+            <mpath href="#path-g-h"/>
+          </animateMotion>
+        </circle>
+        <path id="path-h-g" d="M 196 100 L 382 100" fill="none" stroke="none"/>
+        <path id="path-g-h" d="M 382 100 L 196 100" fill="none" stroke="none"/>
+
+        <!-- Right line: Git ↔ Agent -->
+        <path
+          d="M 518 100 L 704 100"
+          fill="none" stroke="#c026d3" stroke-width="1.5"
+          stroke-dasharray="6 4" opacity="0.35">
+          <animate attributeName="stroke-dashoffset" from="0" to="-20" dur="1.0s" repeatCount="indefinite"/>
+        </path>
+        <!-- dot: Agent → Git -->
+        <circle r="4" fill="#c026d3" filter="url(#glow-f)">
+          <animateMotion dur="2.2s" repeatCount="indefinite" begin="-0.5s" calcMode="ease">
+            <mpath href="#path-a-g"/>
+          </animateMotion>
+        </circle>
+        <!-- dot: Git → Agent -->
+        <circle r="3" fill="#7c3aed" opacity="0.75">
+          <animateMotion dur="2.6s" repeatCount="indefinite" begin="-1.0s" calcMode="ease">
+            <mpath href="#path-g-a"/>
+          </animateMotion>
+        </circle>
+        <path id="path-a-g" d="M 704 100 L 518 100" fill="none" stroke="none"/>
+        <path id="path-g-a" d="M 518 100 L 704 100" fill="none" stroke="none"/>
+
+        <!-- Top line: Human ↔ Agent (instructions) — runs above the nodes -->
+        <path
+          d="M 98 22 L 802 22"
+          fill="none" stroke="#7c3aed" stroke-width="1.5"
+          stroke-dasharray="6 4" opacity="0.3">
+          <animate attributeName="stroke-dashoffset" from="20" to="0" dur="0.9s" repeatCount="indefinite"/>
+        </path>
+        <!-- dot: Human → Agent -->
+        <circle r="3.5" fill="#7c3aed" opacity="0.9">
+          <animateMotion dur="3.2s" repeatCount="indefinite" calcMode="ease">
+            <mpath href="#path-h-a"/>
+          </animateMotion>
+        </circle>
+        <!-- dot: Agent → Human -->
+        <circle r="3.5" fill="#4f46e5" opacity="0.75">
+          <animateMotion dur="3.2s" repeatCount="indefinite" begin="-1.6s" calcMode="ease">
+            <mpath href="#path-a-h"/>
+          </animateMotion>
+        </circle>
+        <path id="path-h-a" d="M 98 22 L 802 22" fill="none" stroke="none"/>
+        <path id="path-a-h" d="M 802 22 L 98 22" fill="none" stroke="none"/>
+
+        <!-- Connector labels -->
+        <text class="conn-label" x="289" y="84" text-anchor="middle">push · review</text>
+        <text class="conn-label" x="611" y="84" text-anchor="middle">git commit</text>
+        <text class="conn-label" x="450" y="14" text-anchor="middle">instructions</text>
+      </svg>
+
+    </div>
+
+    <!-- Detail cards -->
+    <div class="detail-cards">
+      <div class="detail-card">
+        <div class="detail-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 11 12 14 22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+        </div>
+        <div class="detail-text">
+          <div class="detail-title">Select to rework</div>
+          <div class="detail-desc">Highlight any passage in the editor. The agent sees your selection and rewrites it in full manuscript context — no copy-paste.</div>
+        </div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--violet)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/>
+          </svg>
+        </div>
+        <div class="detail-text">
+          <div class="detail-title">Programmable rules</div>
+          <div class="detail-desc">Define tone, style, and constraints once. The agent follows your rules on every call — consistent voice across all chapters.</div>
+        </div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--fuchsia)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="18" r="3"/>
+            <circle cx="6" cy="6" r="3"/>
+            <path d="M13 6h3a2 2 0 0 1 2 2v7"/>
+            <path d="M6 9v12"/>
+          </svg>
+        </div>
+        <div class="detail-text">
+          <div class="detail-title">Full git history</div>
+          <div class="detail-desc">Human and agent commits coexist in the same repo. Diff, review, or revert any change with standard git tools.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .flow-section {
+    padding: 120px 32px;
+    border-top: 1px solid var(--border);
+  }
+
+  .flow-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 300;
+    color: var(--indigo);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .section-heading {
+    font-family: var(--font-serif);
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    text-align: center;
+    line-height: 1.1;
+  }
+
+  .section-sub {
+    max-width: 520px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 15px;
+    font-weight: 300;
+    line-height: 1.7;
+    margin-bottom: 12px;
+  }
+
+  /* ── Horizontal diagram ── */
+  .diagram {
+    position: relative;
+    width: 100%;
+    max-width: 900px;
+    height: 200px;
+    margin: 16px 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Nodes */
+  .node {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 22px 20px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+
+  .node:hover {
+    border-color: rgba(79, 70, 229, 0.25);
+    box-shadow: 0 4px 20px rgba(79, 70, 229, 0.08);
+  }
+
+  .node-human {
+    min-width: 185px;
+  }
+
+  /* Git is the center node — smaller to keep lines short */
+  .node-git {
+    min-width: 130px;
+    padding: 16px 18px;
+  }
+
+  .node-agent {
+    min-width: 185px;
+    background: var(--surface-2);
+    border-color: rgba(79, 70, 229, 0.3);
+    animation: pulseBorder 3s ease-in-out infinite;
+  }
+
+  .node-agent::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.06), rgba(192, 38, 211, 0.03));
+    pointer-events: none;
+  }
+
+  .node-icon {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius);
+    background: rgba(0, 0, 0, 0.04);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+
+  .node-icon-git {
+    width: 36px;
+    height: 36px;
+  }
+
+  .node-icon-agent {
+    background: rgba(79, 70, 229, 0.1);
+    color: var(--indigo);
+    border-color: rgba(79, 70, 229, 0.2);
+  }
+
+  .node-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  .node-git .node-name {
+    font-size: 13px;
+  }
+
+  .node-sub {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 300;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+  }
+
+  .node-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+    margin-top: 2px;
+  }
+
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 300;
+    padding: 2px 8px;
+    border-radius: 100px;
+    letter-spacing: 0.03em;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.03);
+    white-space: nowrap;
+  }
+
+  .chip-indigo {
+    color: var(--indigo);
+    background: rgba(79, 70, 229, 0.07);
+    border-color: rgba(79, 70, 229, 0.2);
+  }
+
+  /* SVG connector overlay */
+  .connector-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .conn-label {
+    font-family: 'DM Mono', 'Fira Mono', monospace;
+    font-size: 10px;
+    fill: #9b9b9b;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Detail cards ── */
+  .detail-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    width: 100%;
+    max-width: 900px;
+    margin-top: 8px;
+  }
+
+  .detail-card {
+    display: flex;
+    gap: 14px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .detail-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+
+  .detail-icon {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius);
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid var(--border);
+  }
+
+  .detail-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .detail-desc {
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 760px) {
+    .diagram {
+      height: auto;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .node-human,
+    .node-git,
+    .node-agent {
+      width: 100%;
+      max-width: 340px;
+      min-width: unset;
+    }
+
+    .connector-svg {
+      display: none;
+    }
+
+    .detail-cards {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .flow-section { padding: 80px 20px; }
+  }
+</style>
