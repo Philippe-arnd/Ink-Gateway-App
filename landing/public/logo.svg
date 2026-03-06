@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -100 512 612" fill="none">
+  <defs>
+    <linearGradient id="inkGrad" x1="256" y1="-100" x2="256" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="50%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#c026d3"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Single robot antenna -->
+  <line x1="256" y1="0" x2="256" y2="-68"
+    stroke="url(#inkGrad)" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="256" cy="-82" r="14" fill="url(#inkGrad)"/>
+
+  <!-- Nib top cap -->
+  <rect x="157.086" y="0" width="197.844" height="88.047"
+    fill="url(#inkGrad)"/>
+
+  <!-- Nib body (filled) -->
+  <path fill="url(#inkGrad)"
+    d="M384.164,290.844c9.641-13.688,12.75-30.953,8.469-47.141l-43.734-135.516H163.117l-43.75,135.516c-4.281,16.188-1.172,33.453,8.469,47.141l104.609,148.344v23.688c-6.359,5.031-10.422,12.813-10.422,21.563c0,15.219,12.328,27.563,27.563,27.563v-48.844v-6.281V264.266c-10.375-2.828-18-12.297-18-23.563c0-13.484,10.922-24.422,24.422-24.422c13.484,0,24.422,10.938,24.422,24.422c0,11.266-7.641,20.734-18,23.547v192.625v6.281V512c15.219,0,27.563-12.344,27.563-27.563c0-8.75-4.078-16.531-10.438-21.563v-23.688L384.164,290.844z"/>
+</svg>
