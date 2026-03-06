@@ -1,0 +1,751 @@
+---
+---
+
+<section class="bento-section" id="features">
+  <div class="bento-inner">
+    <div class="section-label">Features</div>
+    <h2 class="section-heading">Everything a writer needs, nothing more</h2>
+    <p class="section-sub">
+      Ink-Gateway is ruthlessly focused — a clean prose canvas and an agent that
+      actually modifies your document. No formatting clutter, no distractions.
+    </p>
+
+    <div class="bento-grid">
+
+      <!-- Large: Chat Agent Canvas -->
+      <div class="bento-card card-large">
+        <div class="card-glow"></div>
+        <div class="card-header">
+          <div class="card-icon icon-indigo">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="card-title">ink-cli commands</div>
+            <div class="card-sub">Available to any AI agent via MCP</div>
+          </div>
+        </div>
+        <div class="tool-list">
+          <div class="tool-item">
+            <span class="tool-name">ink-cli seed</span>
+            <span class="tool-desc">Bootstrap for AI agents — write CLAUDE.md + GEMINI.md</span>
+          </div>
+          <div class="tool-item">
+            <span class="tool-name">ink-cli init</span>
+            <span class="tool-desc">Scaffold a new book — interactive Q&A, JSON for agents</span>
+          </div>
+          <div class="tool-item">
+            <span class="tool-name">ink-cli session-open</span>
+            <span class="tool-desc">Start a writing session — sync, detect edits, load context</span>
+          </div>
+          <div class="tool-item">
+            <span class="tool-name">ink-cli session-close</span>
+            <span class="tool-desc">End a session — split current.md, update Full_Book, push</span>
+          </div>
+          <div class="tool-item">
+            <span class="tool-name">ink-cli complete</span>
+            <span class="tool-desc">Seal the book — check revisions, format, write COMPLETE</span>
+          </div>
+          <div class="tool-item">
+            <span class="tool-name">ink-cli advance-chapter</span>
+            <span class="tool-desc">Advance to next chapter — update .ink-state.yml, commit</span>
+          </div>
+          <div class="tool-item">
+            <span class="tool-name">ink-cli apply-format</span>
+            <span class="tool-desc">Patch Full_Book.md structure via JSON on stdin — commits + pushes</span>
+          </div>
+          <div class="tool-item">
+            <span class="tool-name">ink-cli reset</span>
+            <span class="tool-desc">Wipe all content — allows re-running init</span>
+          </div>
+          <div class="tool-item">
+            <span class="tool-name">ink-cli rollback</span>
+            <span class="tool-desc">Revert to before the last session — force-push</span>
+          </div>
+          <div class="tool-item">
+            <span class="tool-name">ink-cli status</span>
+            <span class="tool-desc">Read-only snapshot — chapters, word counts, lock status</span>
+          </div>
+          <div class="tool-item">
+            <span class="tool-name">ink-cli update-agents</span>
+            <span class="tool-desc">Refresh AGENTS.md from the latest embedded template</span>
+          </div>
+          <div class="tool-item">
+            <span class="tool-name">ink-cli doctor</span>
+            <span class="tool-desc">Validate repo structure, config, git remote, session state</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Medium: Model Router -->
+      <div class="bento-card card-medium">
+        <div class="card-glow"></div>
+        <div class="card-header">
+          <div class="card-icon icon-violet">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18" cy="18" r="3"/>
+              <circle cx="6" cy="6" r="3"/>
+              <path d="M13 6h3a2 2 0 0 1 2 2v7"/>
+              <line x1="6" y1="9" x2="6" y2="21"/>
+            </svg>
+          </div>
+          <div>
+            <div class="card-title">Smart Model Router</div>
+            <div class="card-sub">Right model for each task</div>
+          </div>
+        </div>
+        <div class="model-table">
+          <div class="model-row model-row-header">
+            <span>Task</span>
+            <span>Model</span>
+          </div>
+          <div class="model-row">
+            <span>Autocomplete suggestion</span>
+            <span class="badge-haiku">Haiku</span>
+          </div>
+          <div class="model-row">
+            <span>Inline rewrite</span>
+            <span class="badge-haiku">Haiku</span>
+          </div>
+          <div class="model-row">
+            <span>Chapter generation</span>
+            <span class="badge-sonnet">Sonnet</span>
+          </div>
+          <div class="model-row">
+            <span>Full scene rewrite</span>
+            <span class="badge-sonnet">Sonnet</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Small: Book Structure -->
+      <div class="bento-card card-small">
+        <div class="card-glow"></div>
+        <div class="card-header">
+          <div class="card-icon icon-fuchsia">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="card-title">Book Structure</div>
+            <div class="card-sub">Plain git repo, no magic</div>
+          </div>
+        </div>
+        <div class="tree">
+          <div class="tree-folder">
+            <span class="tree-icon tree-icon-folder">▸</span>
+            <span class="tree-name tree-name-folder">Global Material/</span>
+          </div>
+          <div class="tree-children">
+            <div class="tree-file"><span class="tree-icon">·</span><span class="tree-name">Soul.md</span><span class="tree-hint">voice &amp; tone</span></div>
+            <div class="tree-file"><span class="tree-icon">·</span><span class="tree-name">Outline.md</span><span class="tree-hint">plot arc</span></div>
+            <div class="tree-file"><span class="tree-icon">·</span><span class="tree-name">Characters.md</span><span class="tree-hint">profiles &amp; arcs</span></div>
+            <div class="tree-file"><span class="tree-icon">·</span><span class="tree-name">Lore.md</span><span class="tree-hint">world-building</span></div>
+            <div class="tree-file"><span class="tree-icon">·</span><span class="tree-name">Summary.md</span><span class="tree-hint">session log</span></div>
+            <div class="tree-file"><span class="tree-icon">·</span><span class="tree-name">Config.yml</span><span class="tree-hint">lengths, structure</span></div>
+          </div>
+          <div class="tree-folder">
+            <span class="tree-icon tree-icon-folder">▸</span>
+            <span class="tree-name tree-name-folder">Chapters material/</span>
+          </div>
+          <div class="tree-children">
+            <div class="tree-file tree-file-muted"><span class="tree-icon">·</span><span class="tree-name">chapter outlines only</span></div>
+          </div>
+          <div class="tree-file tree-file-state"><span class="tree-icon">·</span><span class="tree-name">.ink-state.yml</span><span class="tree-hint">engine state</span></div>
+          <div class="tree-folder">
+            <span class="tree-icon tree-icon-folder">▸</span>
+            <span class="tree-name tree-name-folder">Review/</span>
+          </div>
+          <div class="tree-children">
+            <div class="tree-file"><span class="tree-icon">·</span><span class="tree-name">current.md</span><span class="tree-hint">rolling prose</span></div>
+          </div>
+          <div class="tree-folder">
+            <span class="tree-icon tree-icon-folder">▸</span>
+            <span class="tree-name tree-name-folder">Changelog/</span>
+          </div>
+          <div class="tree-children">
+            <div class="tree-file tree-file-muted"><span class="tree-icon">·</span><span class="tree-name">YYYY-MM-DD-HH-MM.md</span></div>
+          </div>
+          <div class="tree-folder">
+            <span class="tree-icon tree-icon-folder">▸</span>
+            <span class="tree-name tree-name-folder">Current version/</span>
+          </div>
+          <div class="tree-children">
+            <div class="tree-file"><span class="tree-icon">·</span><span class="tree-name">Full_Book.md</span><span class="tree-hint">validated prose</span></div>
+          </div>
+          <div class="tree-file tree-file-complete"><span class="tree-icon">·</span><span class="tree-name">COMPLETE</span><span class="tree-hint">written when done</span></div>
+        </div>
+      </div>
+
+      <!-- Small: Cost Comparison -->
+      <div class="bento-card card-small">
+        <div class="card-glow"></div>
+        <div class="card-header">
+          <div class="card-icon icon-emerald">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23"/>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </div>
+          <div>
+            <div class="card-title">Cost per 200-page book</div>
+            <div class="card-sub">Bring your own API key</div>
+          </div>
+        </div>
+        <div class="cost-table">
+          <div class="cost-row cost-row-header">
+            <span>Model</span>
+            <span>Cost</span>
+          </div>
+          <div class="cost-row cost-row-best">
+            <span class="cost-model">
+              <span class="cost-dot cost-dot-flash"></span>Gemini Flash
+            </span>
+            <span class="cost-value cost-value-best">~$0.04</span>
+          </div>
+          <div class="cost-row">
+            <span class="cost-model">
+              <span class="cost-dot cost-dot-sonnet"></span>Claude Sonnet
+            </span>
+            <span class="cost-value">~$1.93</span>
+          </div>
+          <div class="cost-row">
+            <span class="cost-model">
+              <span class="cost-dot cost-dot-opus"></span>Claude Opus
+            </span>
+            <span class="cost-value cost-value-dim">~$6.92</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wide: Git Log -->
+      <div class="bento-card card-wide">
+        <div class="card-glow"></div>
+        <div class="card-header">
+          <div class="card-icon icon-indigo">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="6" y1="3" x2="6" y2="15"/>
+              <circle cx="18" cy="6" r="3"/>
+              <circle cx="6" cy="18" r="3"/>
+              <path d="M18 9a9 9 0 0 1-9 9"/>
+            </svg>
+          </div>
+          <div>
+            <div class="card-title">git log — complete change history</div>
+            <div class="card-sub">Human and agent commits interleaved, fully auditable</div>
+          </div>
+        </div>
+        <div class="git-log">
+          <div class="git-line">
+            <span class="git-hash">a3f8c1d</span>
+            <span class="git-author git-author-you">you</span>
+            <span class="git-msg">Edit: opening paragraph pacing</span>
+            <span class="git-time">just now</span>
+          </div>
+          <div class="git-line">
+            <span class="git-hash">d72b04f</span>
+            <span class="git-author git-author-agent">agent</span>
+            <span class="git-msg">Insert lighthouse keeper scene — Chapter 3</span>
+            <span class="git-time">2h ago</span>
+          </div>
+          <div class="git-line git-line-dim">
+            <span class="git-hash">e19a53b</span>
+            <span class="git-author git-author-you">you</span>
+            <span class="git-msg">Adjust chapter title and section headers</span>
+            <span class="git-time">5h ago</span>
+          </div>
+          <div class="git-line git-line-dim">
+            <span class="git-hash">c80f2ea</span>
+            <span class="git-author git-author-agent">agent</span>
+            <span class="git-msg">Rewrite: storm sequence tension — scene 2</span>
+            <span class="git-time">yesterday</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<style>
+  .bento-section {
+    padding: 120px 32px;
+    border-top: 1px solid var(--border);
+  }
+
+  .bento-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 300;
+    color: var(--indigo);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .section-heading {
+    font-family: var(--font-serif);
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    text-align: center;
+    line-height: 1.1;
+  }
+
+  .section-sub {
+    max-width: 520px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 15px;
+    font-weight: 300;
+    line-height: 1.7;
+    margin-bottom: 16px;
+  }
+
+  /* ── Grid ── */
+  .bento-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 16px;
+    width: 100%;
+  }
+
+  .bento-card {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: 24px;
+    overflow: hidden;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+
+  .bento-card:hover {
+    transform: scale(1.015) translateY(-2px);
+    border-color: rgba(79, 70, 229, 0.2);
+    box-shadow:
+      0 0 0 1px rgba(79, 70, 229, 0.08),
+      0 20px 60px rgba(0, 0, 0, 0.08);
+  }
+
+  .bento-card:hover .card-glow {
+    opacity: 1;
+  }
+
+  /* Card glow overlay */
+  .card-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 40% at 30% 20%, rgba(79, 70, 229, 0.04), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* Card sizes */
+  .card-large  { grid-column: span 3; grid-row: span 2; }
+  .card-medium { grid-column: span 3; }
+  .card-small  { grid-column: span 2; }
+  .card-wide   { grid-column: span 4; }
+
+  /* Card header */
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .card-icon {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+
+  .icon-indigo  { background: rgba(79, 70, 229, 0.08); color: var(--indigo); border-color: rgba(79, 70, 229, 0.18); }
+  .icon-violet  { background: rgba(124, 58, 237, 0.08); color: var(--violet); border-color: rgba(124, 58, 237, 0.18); }
+  .icon-fuchsia { background: rgba(192, 38, 211, 0.08); color: var(--fuchsia); border-color: rgba(192, 38, 211, 0.18); }
+  .icon-emerald { background: rgba(5, 150, 105, 0.08); color: var(--emerald); border-color: rgba(5, 150, 105, 0.18); }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.3;
+  }
+
+  .card-sub {
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* ── Tool list ── */
+  .tool-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .tool-item {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .tool-item:hover {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: var(--border);
+  }
+
+  .tool-name {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--indigo);
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 190px;
+  }
+
+  .tool-desc {
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+
+  /* ── Model table ── */
+  .model-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .model-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+
+  .model-row:last-child { border-bottom: none; }
+
+  .model-row-header {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  .badge-haiku, .badge-sonnet {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 300;
+    padding: 2px 8px;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+
+  .badge-haiku {
+    background: rgba(79, 70, 229, 0.08);
+    color: var(--indigo);
+    border: 1px solid rgba(79, 70, 229, 0.18);
+  }
+
+  .badge-sonnet {
+    background: rgba(192, 38, 211, 0.08);
+    color: var(--fuchsia);
+    border: 1px solid rgba(192, 38, 211, 0.18);
+  }
+
+  /* ── Book Structure tree ── */
+  .tree {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  .tree-folder {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 6px;
+    border-radius: var(--radius);
+    cursor: default;
+  }
+
+  .tree-folder:hover { background: rgba(0, 0, 0, 0.03); }
+
+  .tree-children {
+    padding-left: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    border-left: 1px solid var(--border);
+    margin-left: 12px;
+    margin-bottom: 2px;
+  }
+
+  .tree-file {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 6px;
+    border-radius: var(--radius);
+  }
+
+  .tree-file:hover { background: rgba(0, 0, 0, 0.03); }
+
+  .tree-icon {
+    color: var(--text-dim);
+    flex-shrink: 0;
+    font-size: 10px;
+    width: 10px;
+    text-align: center;
+  }
+
+  .tree-icon-folder {
+    color: var(--fuchsia);
+    font-size: 8px;
+  }
+
+  .tree-name {
+    color: var(--text-muted);
+    font-weight: 300;
+    white-space: nowrap;
+  }
+
+  .tree-name-folder {
+    color: var(--text);
+    font-weight: 400;
+  }
+
+  .tree-hint {
+    color: var(--text-dim);
+    font-size: 10px;
+    margin-left: 4px;
+    white-space: nowrap;
+  }
+
+  .tree-file-muted .tree-name { color: var(--text-dim); font-style: italic; }
+
+  .tree-file-state .tree-name { color: var(--indigo); }
+
+  .tree-file-complete .tree-name {
+    color: var(--emerald);
+  }
+
+  /* ── Cost table ── */
+  .cost-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .cost-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+
+  .cost-row:last-child { border-bottom: none; }
+
+  .cost-row-header {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  .cost-row-best {
+    background: rgba(5, 150, 105, 0.03);
+  }
+
+  .cost-model {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--text-muted);
+  }
+
+  .cost-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .cost-dot-flash  { background: var(--emerald); box-shadow: 0 0 5px rgba(5, 150, 105, 0.5); }
+  .cost-dot-sonnet { background: var(--indigo); }
+  .cost-dot-opus   { background: var(--text-dim); }
+
+  .cost-value {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  .cost-value-best {
+    color: var(--emerald);
+    font-weight: 500;
+  }
+
+  .cost-value-dim {
+    color: var(--text-muted);
+  }
+
+  /* ── Git Log ── */
+  .git-log {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .git-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    font-family: var(--font-mono);
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.02);
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .git-line:hover {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: var(--border-strong);
+  }
+
+  .git-line-dim {
+    opacity: 0.6;
+  }
+
+  .git-hash {
+    font-size: 11px;
+    color: var(--indigo);
+    font-weight: 400;
+    min-width: 58px;
+    flex-shrink: 0;
+  }
+
+  .git-author {
+    font-size: 10px;
+    font-weight: 300;
+    padding: 1px 7px;
+    border-radius: 100px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  .git-author-agent {
+    color: var(--fuchsia);
+    background: rgba(192, 38, 211, 0.06);
+    border-color: rgba(192, 38, 211, 0.18);
+  }
+
+  .git-author-you {
+    color: var(--indigo);
+    background: rgba(79, 70, 229, 0.06);
+    border-color: rgba(79, 70, 229, 0.18);
+  }
+
+  .git-msg {
+    flex: 1;
+    font-weight: 300;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 12px;
+    font-family: var(--font-sans);
+  }
+
+  .git-time {
+    font-size: 10px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .card-large  { grid-column: span 6; grid-row: span 1; }
+    .card-medium { grid-column: span 6; }
+    .card-small  { grid-column: span 3; }
+    .card-wide   { grid-column: span 6; }
+  }
+
+  @media (max-width: 600px) {
+    .bento-section { padding: 80px 20px; }
+    .bento-grid { grid-template-columns: 1fr; }
+    .card-large, .card-medium, .card-small, .card-wide {
+      grid-column: span 1;
+      grid-row: span 1;
+    }
+
+    .tool-item {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .tool-name { min-width: unset; }
+  }
+</style>

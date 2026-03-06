@@ -1,0 +1,301 @@
+---
+---
+
+<section class="install-section" id="install">
+  <div class="install-inner">
+    <div class="section-label">Get started</div>
+    <h2 class="section-heading">Set up in two commands</h2>
+    <p class="section-sub">
+      Install the CLI, then register the MCP server with your AI client.
+      Your editor and the agent will share the same repo from the start.
+    </p>
+
+    <!-- Step cards -->
+    <div class="step-grid">
+
+      <!-- Step 1 -->
+      <div class="step-card" style="--delay: 0ms">
+        <div class="step-number">1</div>
+        <div class="step-label">Install the CLI</div>
+        <div class="code-block" id="codeBlock1">
+          <button class="copy-btn" data-copy="curl -fsSL https://raw.githubusercontent.com/Philippe-arnd/Ink-Gateway/main/install.sh | bash" aria-label="Copy command">
+            <svg class="icon-copy" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            <svg class="icon-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </button>
+          <pre><code><span class="prompt">$</span> curl -fsSL https://raw.githubusercontent.com/\
+    Philippe-arnd/Ink-Gateway/main/install.sh | bash</code></pre>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step-card" style="--delay: 120ms">
+        <div class="step-number">2</div>
+        <div class="step-label">Add the MCP server — Claude Code</div>
+        <div class="code-block" id="codeBlock2">
+          <button class="copy-btn" data-copy="claude mcp add ink-gateway -- ~/.local/bin/ink-gateway-mcp" aria-label="Copy command">
+            <svg class="icon-copy" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            <svg class="icon-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </button>
+          <pre><code><span class="prompt">$</span> claude mcp add ink-gateway -- \
+    ~/.local/bin/ink-gateway-mcp</code></pre>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<script>
+  // Animate section into view
+  const section = document.getElementById('install');
+  const heading = section?.querySelector<HTMLElement>('.section-heading');
+  const label   = section?.querySelector<HTMLElement>('.section-label');
+  const sub     = section?.querySelector<HTMLElement>('.section-sub');
+  const cards   = section?.querySelectorAll<HTMLElement>('.step-card');
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        [label, heading, sub].forEach((el, i) => {
+          if (!el) return;
+          el.style.transitionDelay = `${i * 80}ms`;
+          el.classList.add('is-visible');
+        });
+        cards?.forEach(card => {
+          card.classList.add('is-visible');
+        });
+        observer.disconnect();
+      });
+    },
+    { threshold: 0.15 }
+  );
+  if (section) observer.observe(section);
+
+  document.querySelectorAll<HTMLButtonElement>('.copy-btn').forEach(btn => {
+    const text = btn.dataset.copy ?? '';
+    const iconCopy = btn.querySelector<SVGElement>('.icon-copy')!;
+    const iconCheck = btn.querySelector<SVGElement>('.icon-check')!;
+    const label = btn.querySelector<HTMLSpanElement>('.copy-text');
+    let timer: ReturnType<typeof setTimeout>;
+
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        iconCopy.style.display = 'none';
+        iconCheck.style.display = 'block';
+        if (label) label.textContent = 'Copied!';
+        btn.classList.add('copied');
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          iconCopy.style.display = 'block';
+          iconCheck.style.display = 'none';
+          if (label) label.textContent = 'Copy';
+          btn.classList.remove('copied');
+        }, 2000);
+      } catch {
+        // clipboard unavailable
+      }
+    });
+  });
+</script>
+
+<style>
+  /* ── Entrance animations ── */
+  .section-label,
+  .section-heading,
+  .section-sub,
+  .step-card {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.55s ease, transform 0.55s ease;
+  }
+
+  .section-label.is-visible,
+  .section-heading.is-visible,
+  .section-sub.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  .step-card.is-visible {
+    opacity: 1;
+    transform: none;
+    transition-delay: calc(240ms + var(--delay, 0ms));
+  }
+
+  .install-section {
+    padding: 120px 32px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: center;
+  }
+
+  .install-inner {
+    max-width: 820px;
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 300;
+    color: var(--indigo);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .section-heading {
+    font-family: var(--font-serif);
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    text-align: center;
+    line-height: 1.1;
+  }
+
+  .section-sub {
+    max-width: 480px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 15px;
+    font-weight: 300;
+    line-height: 1.7;
+    margin-bottom: 12px;
+  }
+
+  /* ── Step grid ── */
+  .step-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xl);
+    padding: 28px 24px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    transition: box-shadow 0.2s, border-color 0.2s;
+  }
+
+  .step-card:hover {
+    border-color: rgba(79, 70, 229, 0.25);
+    box-shadow: 0 8px 32px rgba(79, 70, 229, 0.08);
+  }
+
+  .step-number {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(79, 70, 229, 0.1);
+    border: 1px solid rgba(79, 70, 229, 0.2);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--indigo);
+    flex-shrink: 0;
+  }
+
+  .step-label {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+
+  /* ── Code block ── */
+  .code-block {
+    position: relative;
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 20px;
+    overflow-x: auto;
+  }
+
+  .code-block pre {
+    margin: 0;
+  }
+
+  .code-block code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 300;
+    color: var(--text);
+    line-height: 1.7;
+    white-space: pre;
+  }
+
+  .code-block .copy-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+
+  .prompt {
+    color: var(--indigo);
+    user-select: none;
+  }
+
+  /* ── Copy button ── */
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: var(--font-mono);
+    font-weight: 300;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+  }
+
+  .copy-btn:hover {
+    border-color: rgba(79, 70, 229, 0.3);
+    color: var(--indigo);
+    background: rgba(79, 70, 229, 0.05);
+  }
+
+  .copy-btn.copied {
+    border-color: rgba(5, 150, 105, 0.4);
+    color: var(--emerald);
+    background: rgba(5, 150, 105, 0.05);
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .install-section { padding: 80px 20px; }
+    .step-grid { grid-template-columns: 1fr; }
+    .code-block code { font-size: 11px; }
+    .step-card { align-items: center; text-align: center; }
+    .code-block { width: 100%; text-align: left; }
+  }
+</style>
