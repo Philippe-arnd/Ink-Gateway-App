@@ -42,8 +42,8 @@
 
       <!-- Headline -->
       <h1 class="headline">
-        Your manuscript,<br/>
-        <span class="headline-gradient">shaped by AI</span>
+        Your <span class="cycling-word" id="cycling-word">manuscript</span>,<br/>
+        <span class="headline-gradient">with a little help from AI</span>
       </h1>
 
       <p class="hero-sub">
@@ -266,6 +266,17 @@
     background: var(--indigo);
     animation: dotPulse 2s ease-in-out infinite;
     flex-shrink: 0;
+  }
+
+  /* Cycling word */
+  .cycling-word {
+    display: inline-block;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+
+  .cycling-word.fade-out {
+    opacity: 0;
+    transform: translateY(-6px);
   }
 
   /* Headline */
@@ -520,3 +531,18 @@
     }
   }
 </style>
+
+<script>
+  const words = ['manuscript', 'novel', 'book'];
+  let index = 0;
+  const el = document.getElementById('cycling-word');
+
+  setInterval(() => {
+    el?.classList.add('fade-out');
+    setTimeout(() => {
+      index = (index + 1) % words.length;
+      if (el) el.textContent = words[index];
+      el?.classList.remove('fade-out');
+    }, 250);
+  }, 2500);
+</script>

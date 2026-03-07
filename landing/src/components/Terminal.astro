@@ -11,6 +11,7 @@
     </p>
 
     <!-- Step cards -->
+    <div class="step-grid-outer">
     <div class="step-grid">
 
       <!-- Step 1 -->
@@ -51,6 +52,7 @@
         </div>
       </div>
 
+    </div>
     </div>
 
   </div>
@@ -150,6 +152,7 @@
     flex-direction: column;
     align-items: center;
     gap: 20px;
+    text-align: center;
   }
 
   .section-label {
@@ -172,6 +175,7 @@
 
   .section-sub {
     max-width: 480px;
+    margin: 0 auto;
     text-align: center;
     color: var(--text-muted);
     font-size: 15px;
@@ -181,11 +185,19 @@
   }
 
   /* ── Step grid ── */
+  .step-grid-outer {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
   .step-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: auto auto;
     gap: 16px;
-    width: 100%;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
   }
 
   .step-card {
