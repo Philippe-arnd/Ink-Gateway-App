@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Ink-Gateway Web App** is a paid platform for writers to compose novels/short stories with AI assistance (Claude only). It builds upon the existing `ink-gateway` Rust CLI and `ink-gateway-mcp` server.
 
-The project is currently in the **planning/pre-implementation phase**. The primary reference is `Brainstorming/SPECS_V1.md`.
+The project is currently in the **planning/pre-implementation phase**. The primary reference is `Brainstorming/SPECS_V1.md`. Now we are working on the landing page.
 
 ## Planned Repository Structure
 

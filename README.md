@@ -1,6 +1,6 @@
 # Ink-Gateway Web App
 
-A paid web platform for writing novels and short stories with an AI co-author. Built on top of the [`ink-gateway`](https://github.com/Philippe-arnd/Ink-Gateway) CLI and its MCP server.
+A web platform for writing novels and short stories with an AI co-author. Built on top of the [`ink-gateway`](https://github.com/Philippe-arnd/Ink-Gateway) CLI and its MCP server.
 
 ## What it is
 

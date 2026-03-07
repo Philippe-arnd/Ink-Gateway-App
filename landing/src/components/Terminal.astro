@@ -200,8 +200,8 @@
   }
 
   .step-card:hover {
-    border-color: rgba(79, 70, 229, 0.25);
-    box-shadow: 0 8px 32px rgba(79, 70, 229, 0.08);
+    border-color: rgba(30, 64, 175, 0.25);
+    box-shadow: 0 8px 32px rgba(30, 64, 175, 0.08);
   }
 
   .step-number {
@@ -211,8 +211,8 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background: rgba(79, 70, 229, 0.1);
-    border: 1px solid rgba(79, 70, 229, 0.2);
+    background: rgba(30, 64, 175, 0.1);
+    border: 1px solid rgba(30, 64, 175, 0.2);
     font-family: var(--font-mono);
     font-size: 13px;
     font-weight: 400;
@@ -227,26 +227,52 @@
     letter-spacing: -0.01em;
   }
 
-  /* ── Code block ── */
+  /* ── Code block — terminal style ── */
   .code-block {
     position: relative;
-    background: rgba(0, 0, 0, 0.04);
-    border: 1px solid var(--border);
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: var(--radius-lg);
-    padding: 16px 20px;
-    overflow-x: auto;
+    padding: 14px 16px;
+    overflow: hidden;
+  }
+
+  /* macOS-style traffic lights */
+  .code-block::before {
+    content: '';
+    display: block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ff5f57;
+    box-shadow: 14px 0 0 #febc2e, 28px 0 0 #28c840;
+    margin-bottom: 14px;
+    flex-shrink: 0;
   }
 
   .code-block pre {
     margin: 0;
+    overflow-x: auto;
+    padding-right: 44px; /* room for copy btn */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.12) transparent;
+  }
+
+  .code-block pre::-webkit-scrollbar {
+    height: 4px;
+  }
+  .code-block pre::-webkit-scrollbar-track { background: transparent; }
+  .code-block pre::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
   }
 
   .code-block code {
     font-family: var(--font-mono);
     font-size: 13px;
     font-weight: 300;
-    color: var(--text);
-    line-height: 1.7;
+    color: #cbd5e1;
+    line-height: 1.75;
     white-space: pre;
   }
 
@@ -257,7 +283,7 @@
   }
 
   .prompt {
-    color: var(--indigo);
+    color: var(--violet);
     user-select: none;
   }
 
@@ -268,9 +294,9 @@
     gap: 5px;
     padding: 5px 10px;
     border-radius: var(--radius);
-    border: 1px solid var(--border-strong);
-    background: var(--surface);
-    color: var(--text-muted);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.4);
     font-size: 11px;
     font-family: var(--font-mono);
     font-weight: 300;
@@ -279,23 +305,24 @@
   }
 
   .copy-btn:hover {
-    border-color: rgba(79, 70, 229, 0.3);
-    color: var(--indigo);
-    background: rgba(79, 70, 229, 0.05);
+    border-color: rgba(59, 130, 246, 0.5);
+    color: #93c5fd;
+    background: rgba(59, 130, 246, 0.12);
   }
 
   .copy-btn.copied {
-    border-color: rgba(5, 150, 105, 0.4);
-    color: var(--emerald);
-    background: rgba(5, 150, 105, 0.05);
+    border-color: rgba(5, 150, 105, 0.5);
+    color: #6ee7b7;
+    background: rgba(5, 150, 105, 0.1);
   }
 
-  /* Responsive */
+  /* ── Responsive ── */
+  @media (max-width: 700px) {
+    .step-grid { grid-template-columns: 1fr; }
+  }
+
   @media (max-width: 640px) {
     .install-section { padding: 80px 20px; }
-    .step-grid { grid-template-columns: 1fr; }
-    .code-block code { font-size: 11px; }
-    .step-card { align-items: center; text-align: center; }
-    .code-block { width: 100%; text-align: left; }
+    .code-block code { font-size: 12px; }
   }
 </style>
