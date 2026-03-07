@@ -319,6 +319,30 @@
   /* ── Responsive ── */
   @media (max-width: 700px) {
     .step-grid { grid-template-columns: 1fr; }
+
+    /* On mobile: flex layout so copy btn flows above the pre */
+    .code-block {
+      display: flex;
+      flex-direction: column;
+      overflow: visible;
+    }
+
+    /* Traffic lights stay via ::before — copy btn becomes inline */
+    .code-block .copy-btn {
+      position: static;
+      align-self: flex-end;
+      margin-bottom: 10px;
+    }
+
+    .code-block pre {
+      padding-right: 0;
+      overflow-x: auto;
+    }
+
+    .code-block code {
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
   }
 
   @media (max-width: 640px) {
