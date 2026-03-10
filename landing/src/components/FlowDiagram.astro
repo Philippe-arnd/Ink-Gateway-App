@@ -73,6 +73,14 @@
           </filter>
         </defs>
 
+        <!-- Motion paths declared first — Firefox requires backward references to be defined before use -->
+        <path id="path-h-g" d="M 196 100 L 382 100" fill="none" stroke="none"/>
+        <path id="path-g-h" d="M 382 100 L 196 100" fill="none" stroke="none"/>
+        <path id="path-a-g" d="M 704 100 L 518 100" fill="none" stroke="none"/>
+        <path id="path-g-a" d="M 518 100 L 704 100" fill="none" stroke="none"/>
+        <path id="path-h-a" d="M 98 22 L 802 22" fill="none" stroke="none"/>
+        <path id="path-a-h" d="M 802 22 L 98 22" fill="none" stroke="none"/>
+
         <!-- Left line: Human ↔ Git — deep ink blue -->
         <path
           d="M 196 100 L 382 100"
@@ -92,8 +100,6 @@
             <mpath href="#path-g-h"/>
           </animateMotion>
         </circle>
-        <path id="path-h-g" d="M 196 100 L 382 100" fill="none" stroke="none"/>
-        <path id="path-g-h" d="M 382 100 L 196 100" fill="none" stroke="none"/>
 
         <!-- Right line: Git ↔ Agent — fading ink (cobalt → pale) -->
         <path
@@ -114,9 +120,6 @@
             <mpath href="#path-g-a"/>
           </animateMotion>
         </circle>
-        <path id="path-a-g" d="M 704 100 L 518 100" fill="none" stroke="none"/>
-        <path id="path-g-a" d="M 518 100 L 704 100" fill="none" stroke="none"/>
-
         <!-- Top line: Human ↔ Agent — mid cobalt -->
         <path
           d="M 98 22 L 802 22"
@@ -136,9 +139,6 @@
             <mpath href="#path-a-h"/>
           </animateMotion>
         </circle>
-        <path id="path-h-a" d="M 98 22 L 802 22" fill="none" stroke="none"/>
-        <path id="path-a-h" d="M 802 22 L 98 22" fill="none" stroke="none"/>
-
         <!-- Connector labels -->
         <text class="conn-label" x="289" y="84" text-anchor="middle">pull · push</text>
         <text class="conn-label" x="611" y="84" text-anchor="middle">git commit</text>
