@@ -73,13 +73,6 @@
           </filter>
         </defs>
 
-        <!-- Motion paths declared first — Firefox requires backward references to be defined before use -->
-        <path id="path-h-g" d="M 196 100 L 382 100" fill="none" stroke="none"/>
-        <path id="path-g-h" d="M 382 100 L 196 100" fill="none" stroke="none"/>
-        <path id="path-a-g" d="M 704 100 L 518 100" fill="none" stroke="none"/>
-        <path id="path-g-a" d="M 518 100 L 704 100" fill="none" stroke="none"/>
-        <path id="path-h-a" d="M 98 22 L 802 22" fill="none" stroke="none"/>
-        <path id="path-a-h" d="M 802 22 L 98 22" fill="none" stroke="none"/>
 
         <!-- Left line: Human ↔ Git — deep ink blue -->
         <path
@@ -90,15 +83,11 @@
         </path>
         <!-- dot: Human → Git -->
         <circle r="4" fill="#1e40af" filter="url(#glow-i)">
-          <animateMotion dur="2.4s" repeatCount="indefinite" calcMode="ease">
-            <mpath href="#path-h-g"/>
-          </animateMotion>
+          <animateMotion dur="2.4s" repeatCount="indefinite" calcMode="ease" path="M 196 100 L 382 100"/>
         </circle>
         <!-- dot: Git → Human -->
         <circle r="3" fill="#3b82f6" opacity="0.8">
-          <animateMotion dur="2.8s" repeatCount="indefinite" begin="-1.4s" calcMode="ease">
-            <mpath href="#path-g-h"/>
-          </animateMotion>
+          <animateMotion dur="2.8s" repeatCount="indefinite" begin="-1.4s" calcMode="ease" path="M 382 100 L 196 100"/>
         </circle>
 
         <!-- Right line: Git ↔ Agent — fading ink (cobalt → pale) -->
@@ -110,15 +99,11 @@
         </path>
         <!-- dot: Agent → Git -->
         <circle r="4" fill="#3b82f6" filter="url(#glow-f)">
-          <animateMotion dur="2.2s" repeatCount="indefinite" begin="-0.5s" calcMode="ease">
-            <mpath href="#path-a-g"/>
-          </animateMotion>
+          <animateMotion dur="2.2s" repeatCount="indefinite" begin="-0.5s" calcMode="ease" path="M 704 100 L 518 100"/>
         </circle>
         <!-- dot: Git → Agent — nearly dry -->
         <circle r="3" fill="#93c5fd" opacity="0.9">
-          <animateMotion dur="2.6s" repeatCount="indefinite" begin="-1.0s" calcMode="ease">
-            <mpath href="#path-g-a"/>
-          </animateMotion>
+          <animateMotion dur="2.6s" repeatCount="indefinite" begin="-1.0s" calcMode="ease" path="M 518 100 L 704 100"/>
         </circle>
         <!-- Top line: Human ↔ Agent — mid cobalt -->
         <path
@@ -129,15 +114,11 @@
         </path>
         <!-- dot: Human → Agent -->
         <circle r="3.5" fill="#3b82f6" opacity="0.9">
-          <animateMotion dur="3.2s" repeatCount="indefinite" calcMode="ease">
-            <mpath href="#path-h-a"/>
-          </animateMotion>
+          <animateMotion dur="3.2s" repeatCount="indefinite" calcMode="ease" path="M 98 22 L 802 22"/>
         </circle>
         <!-- dot: Agent → Human — pale, ink almost gone -->
         <circle r="3.5" fill="#93c5fd" opacity="0.85">
-          <animateMotion dur="3.2s" repeatCount="indefinite" begin="-1.6s" calcMode="ease">
-            <mpath href="#path-a-h"/>
-          </animateMotion>
+          <animateMotion dur="3.2s" repeatCount="indefinite" begin="-1.6s" calcMode="ease" path="M 802 22 L 98 22"/>
         </circle>
         <!-- Connector labels -->
         <text class="conn-label" x="289" y="84" text-anchor="middle">pull · push</text>
