@@ -4,68 +4,57 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Ink-Gateway Web App** is a paid platform for writers to compose novels/short stories with AI assistance (Claude only). It builds upon the existing `ink-gateway` Rust CLI and `ink-gateway-mcp` server.
+**Ink-Gateway Web App** turns the [`ink-gateway`](https://github.com/Philippe-arnd/Ink-Gateway) Rust CLI into a real product: a browser-based prose editor, real versioning, and first-class human/AI collaboration (Anthropic or Gemini, user's own key). Personal/invite-only beta — no billing, no multi-tenant quotas.
 
-The project is currently in the **planning/pre-implementation phase**. The primary reference is `Brainstorming/SPECS_V1.md`. Now we are working on the landing page.
+An earlier plan (`Brainstorming/SPECS_V1.md`, `Brainstorming/ARCHITECTURE.md`) proposed Postgres + S3 + Redis + Stripe. That was superseded — see the architecture note below.
 
-## Planned Repository Structure
+## Repository Structure
 
 ```
-backend/    # Rust API (Axum + Diesel ORM)
-frontend/   # React + Vite + TypeScript + CKEditor 5
-mcp/        # ink-gateway-mcp (Anthropic MCP standard, adapted for web)
-```
-
-## Planned Commands (once implemented)
-
-```bash
-# Backend
-cd backend && cargo build
-cd backend && cargo test
-cd backend && cargo test <test_name>   # run a single test
-
-# Frontend
-cd frontend && npm install
-cd frontend && npm run dev
-cd frontend && npm test
-
-# Database migrations
-diesel migration run
-diesel migration revert
+landing/    # Astro marketing site (unchanged, existing)
+api/        # Rust API (Axum), depends on ink-gateway's `ink_core` lib as a git dependency
+app/        # React + Vite + TypeScript + TipTap frontend
 ```
 
 ## Architecture
 
-### Data Flow
-1. React + CKEditor 5 → Rust API (Axum) via JWT-authenticated HTTP
-2. API → PostgreSQL (users, version metadata, token quotas, billing)
-3. API → Scaleway S3 (document content — explicit saves only, never autosave)
-4. Autosave (30s) → Redis buffer only; flushed to S3 on explicit save
-5. AI requests → Redis queue → `ink-gateway-mcp` → quota check → Claude API → Frontend
+**Git-native, not database-native.** Every book is a git working copy on disk — the same model `ink-cli` already uses for its scheduled writing sessions. The web API depends on `Ink-Gateway`'s `ink_core` library crate directly (git dependency, no subprocess shelling) and calls its granular live-edit primitives (`edit::insert_text`, `edit::rewrite_range`, `comments::*`, `git::list_versions`/`restore_version`, `context::get_book_context`).
 
-### Core Design Decisions
-- **Autosave ≠ versioning:** 30s autosave writes to Redis/PostgreSQL buffer only. S3 versions are created only on explicit user saves.
-- **Version restore is forward-only:** Restoring an old version creates a new S3 object — history is never mutated.
-- **Version retention:** Last 20 versions per document. Users can pin versions. A background job purges unpinned excess.
-- **AI is always async:** All Claude calls go through Redis → MCP. Never call Claude directly from API handlers.
-- **Token quota enforced by MCP:** The MCP checks PostgreSQL quota before every Claude API call. Exhausted quota = rejected request with user message.
-- **Model routing:** Claude Haiku for short suggestions/autocomplete; Claude Sonnet for rewrites/generation. Never default to Sonnet for lightweight tasks.
-- **S3 is user-scoped:** Paths follow `users/{user_id}/documents/{doc_id}/{timestamp}.json`. API enforces ownership before any S3 operation.
-- **Editor is prose-only:** CKEditor 5 in minimal mode — no formatting toolbar, no track changes, no inline comments. Clean content is required for the MCP engine to function reliably.
+| Concern | How |
+|---|---|
+| Prose content | Git working copy per book, managed by `ink_core` |
+| Versioning | Every edit is a git commit; version history = `git log`; restore = forward-only new commit from an old blob |
+| Comments/highlights | `Comments/current.yml`, git-tracked (generalizes the CLI's `<!-- INK: -->` marker) |
+| Users, sessions, book registry | SQLite (`api/src/db.rs`) — the only thing not in git |
+| AI provider keys | AES-256-GCM encrypted in SQLite (`api/src/crypto.rs`), master key from `INK_GATEWAY_MASTER_KEY` env var, never returned to the browser after save |
+| AI collaboration | `api/src/llm/` — a provider-agnostic tool-use loop (`anthropic.rs` / `gemini.rs`, user picks one), tools = the same `ink_core` primitives the editor UI calls, streamed to the browser over SSE (`api/src/routes/chat.rs`) |
 
-### Key PostgreSQL Tables
-- `users`, `subscriptions` — auth and Stripe billing
-- `token_usage` — per-call logging (model, tokens in/out) for quota tracking
-- `documents`, `versions` — document metadata and S3 paths
-- `autosave_buffer` — temporary 30s autosave state
+No Postgres, no S3, no Redis, no Stripe. `Ink-Gateway`'s `ink-gateway-mcp` binary is untouched — it keeps serving scheduled/IDE-driven sessions independently of this web app.
 
-### Deployment
-- Coolify on a personal VPS using Docker Compose
-- Services: `api`, `frontend`, `mcp`, `postgres`, `redis`
-- External: Scaleway S3 for object storage only
+## Commands
 
-## Implementation Order
-1. Rust API + PostgreSQL + S3 + Redis (Phase 1)
-2. React frontend + CKEditor 5 + version history UI (Phase 2)
-3. MCP adaptation + token quota + AI features (Phase 3)
-4. Stripe billing + launch (Phase 4)
+```bash
+# API
+cd api && cargo build
+cd api && cargo test
+cd api && cargo clippy --all-targets -- -D warnings
+cd api && cargo run   # reads api/.env — see api/.env.example
+
+# Frontend
+cd app && npm install
+cd app && npm run dev
+cd app && npm run build   # runs `tsc -b` type-check + vite build
+```
+
+## Key Files
+
+- `api/src/main.rs` — router assembly, CORS (must be explicit origin/headers when `allow_credentials(true)` — no `Any` wildcards, tower-http rejects that combination at runtime)
+- `api/src/routes/books.rs` — `load_owned_repo_path` is the shared ownership check every book-scoped route uses; books are registered by `slug` (directory name under `books_dir`), never a raw client-supplied path
+- `api/src/routes/chat.rs` — the tool-use loop: non-streaming per-turn provider calls, looped up to `MAX_TOOL_TURNS`, each turn's text/tool_call/tool_result forwarded to the browser as its own SSE event
+- `api/src/llm/mod.rs` — `Turn`/`TurnEvent`/`LlmProvider` — the internal provider-agnostic shape; `anthropic.rs` and `gemini.rs` each translate it to/from their own wire format
+- `app/src/plainText.ts` — the editor's TipTap schema is intentionally `doc(block(text*))` (one block, no marks) so a ProseMirror position always equals `charOffset + 1` — no separator bookkeeping between paragraphs. This is also what makes it prose-only with no formatting toolbar, matching the original spec's intent.
+- `app/src/pages/Editor.tsx` — `diffRange` (common-prefix/suffix) turns a full-text edit into a single `rewrite_range` call, debounced 1.2s after typing stops
+
+## Deployment
+
+Docker Compose (`docker-compose.yml`), two services (`api`, `app`) + one named volume for SQLite + book git repos. `api/.env.example` documents the required secrets. No deploy has been run from this environment — Coolify/VPS access belongs to Phil.

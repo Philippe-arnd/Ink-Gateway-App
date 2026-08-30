@@ -1,34 +1,35 @@
 # Ink-Gateway Web App
 
-A web platform for writing novels and short stories with an AI co-author. Built on top of the [`ink-gateway`](https://github.com/Philippe-arnd/Ink-Gateway) CLI and its MCP server.
+A web platform for writing novels and short stories with an AI co-author. Built on top of the [`ink-gateway`](https://github.com/Philippe-arnd/Ink-Gateway) CLI's `ink_core` library — git-native versioning, no separate database for book content.
 
 ## What it is
 
-Writers get a distraction-free prose editor paired with a **Chat Agent** powered by Claude. The agent doesn't just suggest text — it acts directly on the document in real time: inserting prose, rewriting sections, managing chapters, updating story context, and restoring past versions. The editor is the canvas; the chat is the co-author.
+Writers get a distraction-free prose editor paired with a **Chat Agent** (Claude or Gemini — bring your own API key). The agent doesn't just suggest text — it acts directly on the manuscript: inserting prose, rewriting sections, leaving comments, restoring past versions. Every edit, human or AI, is a git commit.
 
 ## Stack
 
 | Layer | Technology |
 |---|---|
-| Backend API | Rust (Axum + SQLx) |
+| Backend API | Rust (Axum), depends on `ink_core` (git dependency on `Ink-Gateway`) |
 | Frontend | React + Vite + TypeScript |
-| Editor | TipTap (prose-only, no formatting toolbar) |
-| AI Orchestration | `ink-gateway-mcp` (Anthropic MCP) |
-| AI Provider | Claude (Haiku + Sonnet) |
-| Database | PostgreSQL |
-| Object Storage | Scaleway S3 |
-| Job Queue | `apalis` (Redis-backed) |
-| Payments | Stripe |
-| Deployment | Coolify on VPS (Docker Compose) |
+| Editor | TipTap, single-block plain-text schema (prose-only, no formatting toolbar) |
+| Storage | Git working copies per book (content) + SQLite (users/sessions/registry) |
+| AI Orchestration | `api/src/llm/` — provider-agnostic tool-use loop, Anthropic or Gemini |
+| Deployment | Docker Compose on a personal VPS (Coolify) |
 
 ## Status
 
-**Pre-implementation — planning phase.**
+**Personal/invite-only beta.** No billing, no multi-tenant quotas — see `CLAUDE.md` for the full architecture and how it diverges from the earlier `Brainstorming/` spec.
 
-See [`Brainstorming/SPECS_V1.md`](Brainstorming/SPECS_V1.md) for the full technical specification and [`Brainstorming/ARCHITECTURE.md`](Brainstorming/ARCHITECTURE.md) for the architecture diagram.
+## Local development
 
-## Roadmap
+```bash
+# API
+cd api && cp .env.example .env   # fill in INK_GATEWAY_MASTER_KEY, INK_GATEWAY_INVITE_CODE
+cargo run
 
-- **V0** — Editor + versioning (no AI): TipTap canvas, chapter management, autosave, S3 versioning, export
-- **Phase 1** — AI Agent: Chat panel, MCP tool suite, SSE live canvas updates, token quota system
-- **Phase 2** — Billing & launch: Stripe subscriptions, user dashboard, RGPD, public launch
+# Frontend
+cd app && npm install && npm run dev
+```
+
+Register a book by pointing `INK_GATEWAY_BOOKS_DIR` (or the default `api/data/books/`) at a directory scaffolded by `ink-cli init`, then register it via `POST /api/books` with that directory's name as `slug`.
