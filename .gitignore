@@ -1,6 +1,7 @@
 # Rust
 /target
-Cargo.lock
+# Cargo.lock is committed for the api/ binary crate (reproducible builds) —
+# see api/.gitignore, not ignored here.
 
 # Node.js
 /node_modules
@@ -42,11 +43,3 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
-# Database
-/postgres-data
-diesel.toml
-migrations/*.sql
-
-# Security
-.gemini_security/

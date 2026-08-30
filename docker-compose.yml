@@ -1,0 +1,32 @@
+# Beta deployment: no Postgres, no Redis, no S3 — book content lives in git
+# working copies on the `books` volume; the SQLite registry (users/sessions/
+# book index) lives on the `data` volume. See api/.env.example for the
+# required secrets (INK_GATEWAY_MASTER_KEY, INK_GATEWAY_INVITE_CODE).
+services:
+  api:
+    build: ./api
+    restart: unless-stopped
+    env_file: ./api/.env
+    environment:
+      BIND_ADDR: 0.0.0.0:8787
+      DATABASE_URL: sqlite:///data/ink-gateway.db
+      INK_GATEWAY_BOOKS_DIR: /data/books
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-https://app.ink-gateway.philapps.com}
+      INK_GATEWAY_SECURE_COOKIES: "true"
+      RUST_LOG: info
+    volumes:
+      - data:/data
+    expose:
+      - "8787"
+
+  app:
+    build:
+      context: ./app
+      args:
+        VITE_API_BASE: ${API_PUBLIC_URL:-https://api.ink-gateway.philapps.com}
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+
+volumes:
+  data:
