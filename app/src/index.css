@@ -370,6 +370,46 @@ textarea {
   margin: 1.4rem 0 0.5rem;
 }
 
+.chapter-tree {
+  list-style: none;
+  margin: 0 0 0.4rem;
+  padding: 0;
+  max-height: 160px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.chapter-tree li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #a79fc2;
+}
+
+.chapter-tree li .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4a4360;
+  flex-shrink: 0;
+}
+
+.chapter-tree li.active {
+  background: var(--navy-light);
+  color: #ece8f5;
+  font-weight: 600;
+}
+
+.chapter-tree li.active .dot {
+  background: var(--amber);
+  box-shadow: 0 0 0 3px rgba(201, 130, 42, 0.25);
+}
+
 .comment-list,
 .version-list {
   list-style: none;
@@ -392,20 +432,29 @@ textarea {
 .comment-anchor {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  gap: 0.4rem;
+  gap: 0.2rem;
   text-align: left;
   background: none;
   border: none;
   color: #ece8f5;
   font-size: 0.82rem;
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
-.comment-anchor .icon {
-  flex-shrink: 0;
-  margin-top: 0.15rem;
+.comment-author {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--amber);
+}
+
+.comment-text {
+  color: #ece8f5;
 }
 
 .resolve {

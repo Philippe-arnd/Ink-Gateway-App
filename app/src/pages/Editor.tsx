@@ -189,8 +189,18 @@ export function Editor() {
         {tab === "prose" && (
           <>
             <div className="word-count">
-              {ctx.word_count.total} / {ctx.word_count.target} mots · chapitre {ctx.config.current_chapter}
+              {ctx.word_count.total} / {ctx.word_count.target} mots
             </div>
+
+            <h3>Chapitres</h3>
+            <ul className="chapter-tree">
+              {Array.from({ length: ctx.config.chapter_count }, (_, i) => i + 1).map((n) => (
+                <li key={n} className={n === ctx.config.current_chapter ? "active" : ""}>
+                  <span className="dot" />
+                  Chapitre {n}
+                </li>
+              ))}
+            </ul>
 
             <h3>Commentaires</h3>
             <ul className="comment-list">
@@ -198,8 +208,11 @@ export function Editor() {
               {openComments.map((c) => (
                 <li key={c.id}>
                   <button className="comment-anchor" onClick={() => highlightSelection(c)}>
-                    {c.author === "ai" ? <IconSparkles className="icon" /> : <IconPencil className="icon" />}
-                    <span>{c.text}</span>
+                    <span className="comment-author">
+                      {c.author === "ai" ? <IconSparkles size={12} /> : <IconPencil size={12} />}
+                      {c.author === "ai" ? "IA" : "Toi"}
+                    </span>
+                    <span className="comment-text">{c.text}</span>
                   </button>
                   <button
                     className="resolve"
