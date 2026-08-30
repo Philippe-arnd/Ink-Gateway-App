@@ -53,13 +53,30 @@ pub trait LlmProvider: Send + Sync {
     /// (text and/or tool calls). Non-streaming — the route handler loops
     /// this as needed and streams progress to the browser over its own SSE
     /// connection.
-    async fn run_turn(&self, system_prompt: &str, history: &[Turn]) -> Result<Vec<TurnEvent>>;
+    ///
+    /// `allowed_tools`, when set, restricts which tools the provider is
+    /// even *offered* — a constrained session (e.g. "correction only")
+    /// never sees `replace_current` in its tool list, rather than being
+    /// told no after attempting it.
+    async fn run_turn(
+        &self,
+        system_prompt: &str,
+        history: &[Turn],
+        allowed_tools: Option<&[&str]>,
+    ) -> Result<Vec<TurnEvent>>;
 }
 
 /// Tools mapped 1:1 onto `ink_core::edit` / `ink_core::comments` — the same
 /// primitives the browser editor itself calls, so AI edits and human edits
 /// go through the identical git-committed code path.
-pub fn tool_specs() -> Vec<ToolSpec> {
+pub fn tool_specs(allowed: Option<&[&str]>) -> Vec<ToolSpec> {
+    all_tool_specs()
+        .into_iter()
+        .filter(|t| allowed.is_none_or(|names| names.contains(&t.name)))
+        .collect()
+}
+
+fn all_tool_specs() -> Vec<ToolSpec> {
     vec![
         ToolSpec {
             name: "replace_current",

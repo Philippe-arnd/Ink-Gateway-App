@@ -143,25 +143,26 @@ export const api = {
       body: JSON.stringify({ provider, api_key, key_type }),
     }),
   deleteApiKey: () => request("/api/settings/api-key", { method: "DELETE" }),
+
+  getSessionDiff: (bookId: string, tag: string) =>
+    request<SessionDiff>(`/api/books/${bookId}/sessions/${encodeURIComponent(tag)}/diff`),
 };
 
-export type ChatEvent =
-  | { type: "text"; data: string }
-  | { type: "tool_call"; data: { name: string; input: unknown } }
-  | { type: "tool_result"; data: { name: string; output: string } }
-  | { type: "error"; data: string }
-  | { type: "done" };
+interface RawSseEvent {
+  event: string;
+  data: string;
+}
 
-export async function* streamChat(bookId: string, message: string): AsyncGenerator<ChatEvent> {
-  const res = await fetch(`${BASE}/api/books/${bookId}/chat`, {
+async function* streamSse(path: string, body: unknown): AsyncGenerator<RawSseEvent> {
+  const res = await fetch(`${BASE}${path}`, {
     method: "POST",
     credentials: "include",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify(body),
   });
   if (!res.ok || !res.body) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new ApiError(res.status, body.error ?? res.statusText);
+    const errBody = await res.json().catch(() => ({ error: res.statusText }));
+    throw new ApiError(res.status, errBody.error ?? res.statusText);
   }
 
   const reader = res.body.getReader();
@@ -178,18 +179,64 @@ export async function* streamChat(bookId: string, message: string): AsyncGenerat
       const rawEvent = buffer.slice(0, sepIndex);
       buffer = buffer.slice(sepIndex + 2);
 
-      let eventName = "message";
+      let event = "message";
       let data = "";
       for (const line of rawEvent.split("\n")) {
-        if (line.startsWith("event:")) eventName = line.slice(6).trim();
+        if (line.startsWith("event:")) event = line.slice(6).trim();
         else if (line.startsWith("data:")) data += line.slice(5).trim();
       }
-
-      if (eventName === "text") yield { type: "text", data };
-      else if (eventName === "tool_call") yield { type: "tool_call", data: JSON.parse(data) };
-      else if (eventName === "tool_result") yield { type: "tool_result", data: JSON.parse(data) };
-      else if (eventName === "error") yield { type: "error", data };
-      else if (eventName === "done") yield { type: "done" };
+      yield { event, data };
     }
   }
+}
+
+export type ChatEvent =
+  | { type: "text"; data: string }
+  | { type: "tool_call"; data: { name: string; input: unknown } }
+  | { type: "tool_result"; data: { name: string; output: string } }
+  | { type: "error"; data: string }
+  | { type: "done" };
+
+export async function* streamChat(bookId: string, message: string): AsyncGenerator<ChatEvent> {
+  for await (const { event, data } of streamSse(`/api/books/${bookId}/chat`, { message })) {
+    if (event === "text") yield { type: "text", data };
+    else if (event === "tool_call") yield { type: "tool_call", data: JSON.parse(data) };
+    else if (event === "tool_result") yield { type: "tool_result", data: JSON.parse(data) };
+    else if (event === "error") yield { type: "error", data };
+    else if (event === "done") yield { type: "done" };
+  }
+}
+
+export type SessionIntent = "continue" | "correct" | "rewrite_selection" | "free";
+
+export interface StartSessionBody {
+  intent: SessionIntent;
+  instruction?: string;
+  selection_start?: number;
+  selection_end?: number;
+}
+
+export type SessionEvent =
+  | { type: "text"; data: string }
+  | { type: "tool_call"; data: { name: string; input: unknown } }
+  | { type: "tool_result"; data: { name: string; output: string } }
+  | { type: "error"; data: string }
+  | { type: "session_done"; data: { tag: string } };
+
+export async function* streamSession(
+  bookId: string,
+  body: StartSessionBody,
+): AsyncGenerator<SessionEvent> {
+  for await (const { event, data } of streamSse(`/api/books/${bookId}/sessions`, body)) {
+    if (event === "text") yield { type: "text", data };
+    else if (event === "tool_call") yield { type: "tool_call", data: JSON.parse(data) };
+    else if (event === "tool_result") yield { type: "tool_result", data: JSON.parse(data) };
+    else if (event === "error") yield { type: "error", data };
+    else if (event === "session_done") yield { type: "session_done", data: JSON.parse(data) };
+  }
+}
+
+export interface SessionDiff {
+  before: string;
+  after: string;
 }

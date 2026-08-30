@@ -582,6 +582,188 @@ textarea {
   display: flex;
   flex-direction: column;
   padding: 1.2rem;
+  overflow-y: auto;
+}
+
+.session-idle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.session-idle .with-icon {
+  align-self: flex-start;
+  background: var(--amber);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.55rem 1rem;
+  font-weight: 600;
+}
+
+.session-spinner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 0.8rem;
+}
+
+.session-error button {
+  margin-top: 0.6rem;
+  background: var(--paper-dim);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+}
+
+.diff-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.diff-actions .accept {
+  background: var(--amber);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1.1rem;
+  font-weight: 600;
+}
+
+.diff-actions .reject {
+  background: none;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  padding: 0.5rem 1.1rem;
+}
+
+.diff-summary {
+  font-size: 0.78rem;
+  margin-bottom: 0.6rem;
+}
+
+.diff-body {
+  font-family: "Fraunces", serif;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.8rem;
+}
+
+.diff-added {
+  background: #dcf5e0;
+  color: #1e5c2b;
+  text-decoration: none;
+}
+
+.diff-removed {
+  background: #fbdede;
+  color: #7c2323;
+  text-decoration: line-through;
+}
+
+/* ---- Session modal ---- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 17, 28, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.modal {
+  background: var(--paper);
+  border-radius: 12px;
+  padding: 1.6rem;
+  width: 440px;
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+}
+
+.modal h2 {
+  font-family: "Fraunces", serif;
+  margin: 0 0 1rem;
+  font-size: 1.2rem;
+}
+
+.intent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.intent-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+  cursor: pointer;
+}
+
+.intent-option.selected {
+  border-color: var(--amber);
+  background: #fdf3e7;
+}
+
+.intent-option input {
+  margin-top: 0.2rem;
+}
+
+.intent-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.intent-hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+
+.modal-instruction {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 1rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.7rem;
+  margin-top: 1.2rem;
+}
+
+.modal-actions button[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.modal-actions button:not(.link) {
+  background: var(--amber);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1.2rem;
+  font-weight: 600;
 }
 
 .chat-panel h3 {

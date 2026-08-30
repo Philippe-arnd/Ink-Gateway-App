@@ -58,8 +58,13 @@ fn to_contents(history: &[Turn]) -> Vec<Value> {
 
 #[async_trait]
 impl LlmProvider for GeminiProvider {
-    async fn run_turn(&self, system_prompt: &str, history: &[Turn]) -> Result<Vec<TurnEvent>> {
-        let function_declarations: Vec<Value> = tool_specs()
+    async fn run_turn(
+        &self,
+        system_prompt: &str,
+        history: &[Turn],
+        allowed_tools: Option<&[&str]>,
+    ) -> Result<Vec<TurnEvent>> {
+        let function_declarations: Vec<Value> = tool_specs(allowed_tools)
             .into_iter()
             .map(|t| {
                 json!({ "name": t.name, "description": t.description, "parameters": t.parameters })

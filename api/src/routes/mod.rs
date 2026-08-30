@@ -3,6 +3,7 @@ pub mod books;
 pub mod chat;
 pub mod comments;
 pub mod edit;
+pub mod sessions;
 pub mod settings;
 pub mod versions;
 
@@ -38,4 +39,6 @@ pub fn router() -> Router<AppState> {
         .route("/api/books/{id}/versions", get(versions::list))
         .route("/api/books/{id}/versions/restore", post(versions::restore))
         .route("/api/books/{id}/chat", post(chat::chat))
+        .route("/api/books/{id}/sessions", post(sessions::start))
+        .route("/api/books/{id}/sessions/{tag}/diff", get(sessions::diff))
 }
