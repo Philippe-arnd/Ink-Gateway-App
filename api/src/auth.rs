@@ -2,7 +2,10 @@ use argon2::Argon2;
 use argon2::password_hash::{PasswordHasher, PasswordVerifier};
 use axum::extract::{FromRequestParts, State};
 use axum::http::request::Parts;
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use tower_sessions::Session;
 
 use crate::error::AppError;
@@ -28,6 +31,19 @@ pub fn verify_password(password: &str, hash: &str) -> bool {
 pub async fn set_session_user(session: &Session, user_id: &str) -> anyhow::Result<()> {
     session.insert(SESSION_USER_KEY, user_id).await?;
     Ok(())
+}
+
+/// Generates a password-reset token: the raw, URL-safe value goes in the
+/// emailed link; only `hash_token(&raw)` is ever stored, so a database leak
+/// alone can't be used to reset anyone's password.
+pub fn generate_reset_token() -> String {
+    let raw: [u8; 32] = rand::random();
+    URL_SAFE_NO_PAD.encode(raw)
+}
+
+pub fn hash_token(raw: &str) -> String {
+    let digest = Sha256::digest(raw.as_bytes());
+    URL_SAFE_NO_PAD.encode(digest)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -86,5 +102,20 @@ mod tests {
         let a = hash_password("same-password").unwrap();
         let b = hash_password("same-password").unwrap();
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn reset_tokens_are_unique_and_url_safe() {
+        let a = generate_reset_token();
+        let b = generate_reset_token();
+        assert_ne!(a, b);
+        assert!(!a.contains('+') && !a.contains('/') && !a.contains('='));
+    }
+
+    #[test]
+    fn hash_token_is_deterministic_but_differs_from_the_raw_token() {
+        let token = generate_reset_token();
+        assert_eq!(hash_token(&token), hash_token(&token));
+        assert_ne!(hash_token(&token), token);
     }
 }

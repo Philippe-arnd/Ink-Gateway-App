@@ -5,7 +5,7 @@
 use std::convert::Infallible;
 use std::path::PathBuf;
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use async_stream::stream;
 use axum::response::sse::Event;
 use futures::stream::Stream;
@@ -120,9 +120,17 @@ pub async fn execute_tool(repo_path: PathBuf, name: &str, input: &Value) -> Resu
             let content = str_field("content")?;
             blocking::run(move || {
                 let current_path = repo_path.join("Review").join("current.md");
-                let len = std::fs::read_to_string(&current_path)
-                    .map(|s| s.chars().count())
-                    .unwrap_or(0);
+                // Missing file = legitimately empty draft (len 0). Any other
+                // read error must propagate — silently treating it as "empty"
+                // would make rewrite_range(0, 0, ..) *insert* at the start
+                // instead of replacing, duplicating whatever's actually there.
+                let len = match std::fs::read_to_string(&current_path) {
+                    Ok(s) => s.chars().count(),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => 0,
+                    Err(e) => {
+                        return Err(e).context("failed to read Review/current.md");
+                    }
+                };
                 ink_core::edit::rewrite_range(&repo_path, 0, len, &content)
             })
             .await?
