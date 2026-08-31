@@ -19,7 +19,7 @@ services:
     expose:
       - "8787"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8787/"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8787/"]
       interval: 10s
       timeout: 3s
       start_period: 5s
@@ -68,8 +68,11 @@ services:
     # explanation for `web` going down too: a static nginx doesn't crash.
     # This block overrides the image's own HEALTHCHECK at runtime; the
     # Dockerfile keeps its copy so `docker ps` stays informative standalone.
+    # 127.0.0.1, not `localhost` — see web/Dockerfile for why that difference
+    # took the whole site down. A failing probe doesn't just look bad: Traefik
+    # refuses to route to a container whose Docker health is not `healthy`.
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost/"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/"]
       interval: 10s
       timeout: 3s
       start_period: 5s
