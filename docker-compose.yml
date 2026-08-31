@@ -18,62 +18,36 @@ services:
       - data:/data
     expose:
       - "8787"
-    # TEMPORARY — diagnostic only, revert once #34's crash-loop is identified.
-    # The api exits within seconds of every deploy and Coolify tears the whole
-    # compose project down once the restart count hits its cap, taking `web`
-    # with it and destroying the container before anyone can read its stderr.
-    # Neither the Coolify API nor its UI can produce a stopped container's log,
-    # so the only way to see why it dies is to stop it from dying: run the
-    # binary, print its exit code, then hold the container open so the log
-    # stays readable. The echoes below report presence/length only, never a
-    # secret's value.
-    command:
-      - sh
-      - -c
-      - |
-        echo "--- ink-gateway-api startup diagnostics ---"
-        echo "INK_GATEWAY_MASTER_KEY  present=$${INK_GATEWAY_MASTER_KEY:+yes} len=$${#INK_GATEWAY_MASTER_KEY}"
-        echo "INK_GATEWAY_INVITE_CODE present=$${INK_GATEWAY_INVITE_CODE:+yes}"
-        echo "RESEND_API_KEY          present=$${RESEND_API_KEY:+yes}"
-        echo "RESEND_FROM_EMAIL       present=$${RESEND_FROM_EMAIL:+yes}"
-        echo "DATABASE_URL=$${DATABASE_URL}"
-        echo "INK_GATEWAY_BOOKS_DIR=$${INK_GATEWAY_BOOKS_DIR}"
-        echo "--- /data ---"
-        ls -la /data 2>&1 || echo "cannot list /data"
-        echo "--- running binary ---"
-        ink-gateway-api
-        echo "=== ink-gateway-api exited with code $$? — holding container open 1h for log capture ==="
-        sleep 3600
-    # TEMPORARY, paired with the command override above. While the binary is
-    # held open but not serving, anything probing 8787 would report unhealthy
-    # and invite Coolify to restart the container — which is the very loop
-    # we're trying to break. Always-true for the duration of the capture; the
-    # real check (GET / on 8787) lands with the fix.
     healthcheck:
-      test: ["CMD", "true"]
-      interval: 30s
-      timeout: 5s
-      start_period: 10s
-      retries: 3
-    # Coolify's per-service Domain field alone doesn't reliably disambiguate
-    # paths on one shared domain for a docker-compose app (see
-    # Ink-Gateway-App#34) — explicit labels + priority instead of relying on
-    # auto-generated routers. `web` keeps its Coolify-managed router as the
-    # catch-all on the bare domain; this one just has to outrank it on /api.
+      test: ["CMD", "curl", "-f", "http://localhost:8787/"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 5
+    # Both services pin their own Traefik router here rather than relying on
+    # Coolify's Domains tab (see Ink-Gateway-App#34). The tab alone can't split
+    # one domain across compose services, and the service it generates points
+    # at the application-level `ports_exposes` — still "3000", a port nothing
+    # here listens on, which is what left the bare domain answering Traefik's
+    # "no available server" while nginx was up and healthy.
+    #
+    # Priorities are explicit and far above any rule-length default: Traefik
+    # computes an unset priority from the rule string's length, so a small
+    # explicit number would silently lose to an auto-generated router.
     labels:
       - traefik.enable=true
-      - traefik.http.routers.ink-gateway-api.rule=Host(`${DOMAIN:-ink-gateway.philapps.com}`) && PathPrefix(`/api`)
+      - traefik.http.routers.ink-gateway-api.rule=Host(`${DOMAIN:-ink-gateway.philapps.com}`, `www.${DOMAIN:-ink-gateway.philapps.com}`) && PathPrefix(`/api`)
       - traefik.http.routers.ink-gateway-api.entrypoints=https
       - traefik.http.routers.ink-gateway-api.tls=true
       - traefik.http.routers.ink-gateway-api.tls.certresolver=letsencrypt
-      - traefik.http.routers.ink-gateway-api.priority=100
+      - traefik.http.routers.ink-gateway-api.priority=1000
       - traefik.http.services.ink-gateway-api.loadbalancer.server.port=8787
       - traefik.docker.network=coolify
 
   # One nginx serving the Astro landing at / and the React SPA at /app/ —
-  # they were two separate services until #34 (see web/Dockerfile). This one
-  # owns the bare domain as the catch-all, so it needs no Traefik labels of
-  # its own: assign the domain to it in Coolify's Domains tab.
+  # they were two separate services until #34 (see web/Dockerfile). Owns the
+  # bare domain as the catch-all, at a priority just below api's so /api still
+  # wins.
   web:
     build:
       context: .
@@ -100,6 +74,15 @@ services:
       timeout: 3s
       start_period: 5s
       retries: 5
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ink-gateway-web.rule=Host(`${DOMAIN:-ink-gateway.philapps.com}`, `www.${DOMAIN:-ink-gateway.philapps.com}`)
+      - traefik.http.routers.ink-gateway-web.entrypoints=https
+      - traefik.http.routers.ink-gateway-web.tls=true
+      - traefik.http.routers.ink-gateway-web.tls.certresolver=letsencrypt
+      - traefik.http.routers.ink-gateway-web.priority=900
+      - traefik.http.services.ink-gateway-web.loadbalancer.server.port=80
+      - traefik.docker.network=coolify
 
 volumes:
   data:

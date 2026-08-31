@@ -43,16 +43,28 @@ except a third service competing for the same domain.
   the proxy** — the auth rate limiter trusts `X-Forwarded-For`/`Forwarded` to
   identify clients (`SmartIpKeyExtractor`), and a client that can reach the
   API directly could forge that header to dodge the limit entirely.
-- One domain. `web` owns it as the catch-all — on Coolify, assign the domain
-  to `web` in the application's Domains tab, nothing more. `api` is routed to
-  `/api` by **explicit Traefik labels in `docker-compose.yml`**
-  (`ink-gateway-api` router, `priority=100`) rather than by its Domains-tab
-  entry: relying on the Domains tab alone to split one domain across several
-  compose services doesn't reliably disambiguate the paths (see
-  [Ink-Gateway-App#34](https://github.com/Philippe-arnd/Ink-Gateway-App/issues/34)),
-  every path fell through to whichever service owned the bare `Host()` rule.
-  If you deploy to a domain other than `ink-gateway.philapps.com`, set the
-  `DOMAIN` env var (build/runtime variable in Coolify) so the label matches.
+- One domain, with **both** services routed by explicit Traefik labels in
+  `docker-compose.yml` — `ink-gateway-web` on the bare host (`priority=900`)
+  and `ink-gateway-api` on `/api` (`priority=1000`, so it wins). Do not rely
+  on Coolify's Domains tab for this (see
+  [Ink-Gateway-App#34](https://github.com/Philippe-arnd/Ink-Gateway-App/issues/34)):
+  it can't split one domain across compose services, and the Traefik service
+  it generates points at the application-level `ports_exposes` field, which
+  defaults to `3000` — a port neither container listens on, so the domain
+  answers Traefik's `no available server` even while nginx is up and healthy.
+  Keep a domain assigned in the tab anyway (Coolify issues the TLS cert from
+  it), but the routing comes from the labels. If you deploy elsewhere, set
+  the `DOMAIN` env var so both rules match.
+  - Priorities are explicit and deliberately large: Traefik derives an unset
+    priority from the rule string's *length*, so a small explicit number
+    loses to a longer auto-generated rule.
+- **`FRONTEND_ORIGIN`, `API_PUBLIC_URL` and `APP_PUBLIC_URL` must match the
+  single-domain layout.** Values left over from the abandoned subdomain plan
+  (`https://app.ink-gateway.philapps.com`, `https://api....`) silently
+  survive in Coolify's environment-variables tab and **override the defaults
+  in `docker-compose.yml`** — a stale `FRONTEND_ORIGIN` breaks CORS for every
+  request the SPA makes, and stale `API_PUBLIC_URL`/`APP_PUBLIC_URL` get
+  baked into the frontend at build time. Check the tab, not just this file.
 - A [Resend](https://resend.com) account + a verified sending domain, for
   password-reset emails.
 - An Anthropic and/or Gemini API key is **not** an operator secret — each
