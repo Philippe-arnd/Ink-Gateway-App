@@ -7,41 +7,46 @@ See `CLAUDE.md` for why.
 
 ```
                          ┌─────────────┐
-  browser ───HTTPS───▶   │landing(nginx)│  static Astro marketing site,
-                         └─────────────┘  root domain — Sign in/up links
-                                │  out to the app domain
+  browser ───HTTPS───▶   │landing(nginx)│  static Astro marketing site, at /
+                         └─────────────┘  Sign in/up links out to /app
+                                │
                                 ▼
                          ┌─────────────┐
-                         │  app (nginx) │  static React build, own subdomain
+                         │  app (nginx) │  static React build, at /app
                          └─────────────┘
-                                │  fetch() same-site, credentials: include
+                                │  fetch() same-origin, credentials: include
                                 ▼
                          ┌─────────────┐        ┌─────────────────────┐
                          │  api (Axum)  │───────▶│ /data/ink-gateway.db │ (SQLite)
-                         └─────────────┘        │ /data/books/*        │ (git repos)
+                         └─────────────┘, at /api│ /data/books/*        │ (git repos)
                                 │                └─────────────────────┘
                                 ▼
                     Anthropic / Gemini / Resend
                     (outbound only, user's own keys)
 ```
 
-All three services build from this repo's `docker-compose.yml`. Nothing here
+All three services build from this repo's `docker-compose.yml` and share a
+**single domain**, split by path prefix (`/`, `/app`, `/api`) rather than by
+subdomain — same origin end to end, so the app's session cookie and the
+api's CORS config don't have to deal with cross-origin at all. Nothing here
 has been deployed from the environment that wrote it — this is the reference
 for whoever runs it (Coolify or otherwise), not a record of an actual run.
 
 ## Prerequisites
 
-- A reverse proxy in front of both containers that terminates TLS and sets
-  `X-Forwarded-For` correctly (Coolify's built-in Traefik does this). **The
-  `api` container must never be reachable directly, bypassing the proxy** —
-  the auth rate limiter trusts `X-Forwarded-For`/`Forwarded` to identify
-  clients (`SmartIpKeyExtractor`, see `api/src/routes/mod.rs`), and a client
-  that can reach the API directly could forge that header to dodge the
-  limit entirely.
-- Three domains/subdomains: one for `landing` (root domain, the public
-  marketing site), one for `app` (the editor frontend), one for `api`.
-  On Coolify this is set per-service in the application's Domains tab —
-  the compose file itself doesn't pin these.
+- A reverse proxy in front of all three containers that terminates TLS,
+  routes by path prefix (`/` → `landing`, `/app` → `app`, `/api` → `api`,
+  **unstripped** — `api`'s own routes are already prefixed `/api/...`, see
+  `api/src/routes/mod.rs`), and sets `X-Forwarded-For` correctly (Coolify's
+  built-in Traefik does all of this). **The `api` container must never be
+  reachable directly, bypassing the proxy** — the auth rate limiter trusts
+  `X-Forwarded-For`/`Forwarded` to identify clients (`SmartIpKeyExtractor`),
+  and a client that can reach the API directly could forge that header to
+  dodge the limit entirely.
+- One domain, with all three services assigned to it under their path
+  prefix. On Coolify this is set per-service in the application's Domains
+  tab (each service gets the same host, with `/app` and `/api` as the
+  path) — the compose file itself doesn't pin these.
 - A [Resend](https://resend.com) account + a verified sending domain, for
   password-reset emails.
 - An Anthropic and/or Gemini API key is **not** an operator secret — each
@@ -67,20 +72,21 @@ for whoever runs it (Coolify or otherwise), not a record of an actual run.
 
 | Variable | Required | Notes |
 |---|---|---|
-| `API_PUBLIC_URL` | **yes** | The public URL of the `api` service, baked into the `app` frontend build at build time (Vite env vars are compile-time). Changing it means rebuilding the `app` image. |
-| `FRONTEND_ORIGIN` | **yes** (on `api`) | The public URL of `app`, used for CORS `allow_origin` and the link inside password-reset emails. Must match exactly (scheme + host, no trailing slash). |
-| `APP_PUBLIC_URL` | recommended | The public URL of `app`, baked into the `landing` build so its Sign in/up links point at the right place. Defaults to `https://app.ink-gateway.philapps.com`; override if the app subdomain differs. |
+| `API_PUBLIC_URL` | **yes** | The public URL of the `api` service (e.g. `https://yourdomain.com/api`), baked into the `app` frontend build at build time (Vite env vars are compile-time). Changing it means rebuilding the `app` image. |
+| `FRONTEND_ORIGIN` | **yes** (on `api`) | The public origin serving `app` — since `app`/`api`/`landing` share one domain, this is just that domain (e.g. `https://yourdomain.com`, no path, no trailing slash). Used for CORS `allow_origin` and the link inside password-reset emails. |
+| `APP_PUBLIC_URL` | recommended | The public URL of `app` (e.g. `https://yourdomain.com/app`), baked into the `landing` build so its Sign in/up links point at the right place. |
+| `VITE_BASE_PATH` (on `app`'s own Dockerfile, not compose) | no | Where `app` is served from; defaults to `/app/`. Only needed if you move `app` off that path — also update `nginx.conf`'s `location /app/` block to match. |
 
 ## Deploy
 
 1. `cp api/.env.example api/.env`, fill in every **yes** row above.
-2. Set `FRONTEND_ORIGIN` and `API_PUBLIC_URL` (Coolify: as build/runtime
-   variables on the respective service; plain Docker Compose: export them
-   before `docker compose up` or put them in a root `.env`).
+2. Set `FRONTEND_ORIGIN`, `API_PUBLIC_URL`, `APP_PUBLIC_URL` (Coolify: as
+   build/runtime variables on the respective service; plain Docker Compose:
+   export them before `docker compose up` or put them in a root `.env`).
 3. `docker compose up -d --build`.
-4. Point DNS for all three domains at the proxy; issue TLS certs (Coolify
-   does this automatically via Traefik/Let's Encrypt).
-5. Register the first account at `https://<app-domain>/login` using
+4. Point DNS at the proxy; issue a TLS cert (Coolify does this
+   automatically via Traefik/Let's Encrypt).
+5. Register the first account at `https://<domain>/app/login` using
    `INK_GATEWAY_INVITE_CODE`.
 6. Scaffold a book on the server (`ink-cli init` from the `Ink-Gateway`
    repo) under the path mounted as `INK_GATEWAY_BOOKS_DIR` (`/data/books`
