@@ -18,6 +18,20 @@ services:
       - data:/data
     expose:
       - "8787"
+    # Coolify's per-service Domain field alone doesn't reliably disambiguate
+    # /app vs /api vs / on one shared domain for a docker-compose app (see
+    # Ink-Gateway-App#34) — explicit labels + priority instead of relying on
+    # auto-generated routers. landing keeps its Coolify-managed router as the
+    # catch-all; these just need to consistently outrank it.
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ink-gateway-api.rule=Host(`${DOMAIN:-ink-gateway.philapps.com}`) && PathPrefix(`/api`)
+      - traefik.http.routers.ink-gateway-api.entrypoints=https
+      - traefik.http.routers.ink-gateway-api.tls=true
+      - traefik.http.routers.ink-gateway-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.ink-gateway-api.priority=100
+      - traefik.http.services.ink-gateway-api.loadbalancer.server.port=8787
+      - traefik.docker.network=coolify
 
   app:
     build:
@@ -27,6 +41,15 @@ services:
     restart: unless-stopped
     expose:
       - "80"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ink-gateway-app.rule=Host(`${DOMAIN:-ink-gateway.philapps.com}`) && PathPrefix(`/app`)
+      - traefik.http.routers.ink-gateway-app.entrypoints=https
+      - traefik.http.routers.ink-gateway-app.tls=true
+      - traefik.http.routers.ink-gateway-app.tls.certresolver=letsencrypt
+      - traefik.http.routers.ink-gateway-app.priority=100
+      - traefik.http.services.ink-gateway-app.loadbalancer.server.port=80
+      - traefik.docker.network=coolify
 
   landing:
     build:
