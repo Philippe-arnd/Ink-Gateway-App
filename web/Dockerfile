@@ -23,11 +23,17 @@ WORKDIR /build
 COPY app/package.json app/package-lock.json ./
 RUN npm ci
 COPY app/ .
-# The API's *origin*, with no path: app/src/api.ts already prefixes every
-# request path with /api (`${BASE}${path}`, path = "/api/auth/login"). Putting
-# /api here too sends /api/api/... — which only ever worked because Coolify was
-# stripping one /api back off. See DEPLOYMENT.md.
-ARG VITE_API_BASE=https://ink-gateway.philapps.com
+# Ends in /api deliberately, even though app/src/api.ts prefixes every path
+# with /api as well — the browser sends /api/api/... and Coolify's stripprefix
+# removes exactly one, so Axum receives the /api/... its routes declare.
+#
+# This looks like a bug and isn't safe to "fix" on its own. A Coolify compose
+# service is only routed at all if it has a Domains entry, and an entry
+# carrying a path always generates that stripprefix — so the strip cannot be
+# turned off while keeping /api routed. Removing the duplication here without
+# also removing the /api prefix from the api's own routes takes production
+# down. See DEPLOYMENT.md.
+ARG VITE_API_BASE=https://ink-gateway.philapps.com/api
 ENV VITE_API_BASE=$VITE_API_BASE
 ARG VITE_BASE_PATH=/app/
 ENV VITE_BASE_PATH=$VITE_BASE_PATH
