@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=build /build/target/release/ink-gateway-api /usr/local/bin/ink-gateway-api
 WORKDIR /data
 EXPOSE 8787
+# 127.0.0.1 rather than `localhost` for the same reason as web/Dockerfile —
+# curl happens to fall back from ::1 to IPv4 where busybox wget doesn't, but
+# there's no reason to depend on that difference.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
-    CMD curl -f http://localhost:8787/ || exit 1
+    CMD curl -f http://127.0.0.1:8787/ || exit 1
 CMD ["ink-gateway-api"]

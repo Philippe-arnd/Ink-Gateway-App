@@ -20,6 +20,29 @@ jobs:
             test -f /usr/share/nginx/html/app/index.html'
       - name: Check the nginx config is valid
         run: docker run --rm ink-gateway-web nginx -t
+      # A failing healthcheck is not cosmetic: Traefik refuses to route to a
+      # container whose Docker health isn't `healthy`, so the domain serves
+      # "no available server" while nginx is up and fine. That took the site
+      # down once already (#34) because nothing exercised the probe outside
+      # production. Actually run the container and wait for it to go healthy.
+      - name: Check the container reports healthy
+        run: |
+          docker run -d --name webhealth ink-gateway-web
+          for i in $(seq 1 30); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' webhealth)
+            if [ "$status" = "healthy" ]; then
+              echo "healthy after ${i}s"
+              exit 0
+            fi
+            if [ "$status" = "unhealthy" ]; then
+              break
+            fi
+            sleep 1
+          done
+          echo "::error::container never became healthy (status: $(docker inspect --format '{{.State.Health.Status}}' webhealth))"
+          docker inspect --format '{{json .State.Health}}' webhealth
+          docker logs webhealth
+          exit 1
 
   api:
     runs-on: ubuntu-latest
