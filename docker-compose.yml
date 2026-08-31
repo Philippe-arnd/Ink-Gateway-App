@@ -11,7 +11,7 @@ services:
       BIND_ADDR: 0.0.0.0:8787
       DATABASE_URL: sqlite:///data/ink-gateway.db
       INK_GATEWAY_BOOKS_DIR: /data/books
-      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-https://app.ink-gateway.philapps.com}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-https://ink-gateway.philapps.com}
       INK_GATEWAY_SECURE_COOKIES: "true"
       RUST_LOG: info
     volumes:
@@ -23,7 +23,7 @@ services:
     build:
       context: ./app
       args:
-        VITE_API_BASE: ${API_PUBLIC_URL:-https://api.ink-gateway.philapps.com}
+        VITE_API_BASE: ${API_PUBLIC_URL:-https://ink-gateway.philapps.com/api}
     restart: unless-stopped
     expose:
       - "80"
@@ -32,7 +32,7 @@ services:
     build:
       context: ./landing
       args:
-        PUBLIC_APP_URL: ${APP_PUBLIC_URL:-https://app.ink-gateway.philapps.com}
+        PUBLIC_APP_URL: ${APP_PUBLIC_URL:-https://ink-gateway.philapps.com/app}
     restart: unless-stopped
     expose:
       - "80"

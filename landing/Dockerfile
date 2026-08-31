@@ -3,7 +3,7 @@ WORKDIR /build
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-ARG PUBLIC_APP_URL=https://app.ink-gateway.philapps.com
+ARG PUBLIC_APP_URL=https://ink-gateway.philapps.com/app
 ENV PUBLIC_APP_URL=$PUBLIC_APP_URL
 RUN npm run build
 
