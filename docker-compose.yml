@@ -14,6 +14,17 @@ services:
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-https://ink-gateway.philapps.com}
       INK_GATEWAY_SECURE_COOKIES: "true"
       RUST_LOG: info
+      # ink_core shells out to `git commit` for every edit/comment/session/
+      # onboarding scaffold — nothing else in this image ever configures a
+      # git identity (no --global, no /etc/gitconfig), so without these the
+      # very first commit attempted inside the container fails with "Please
+      # tell me who you are." These env vars are git's own author/committer
+      # override, read directly by the `git` binary — no `git config` call
+      # needed, and they only affect this container's process, not the host.
+      GIT_AUTHOR_NAME: "Ink Gateway"
+      GIT_AUTHOR_EMAIL: "bot@ink-gateway.philapps.com"
+      GIT_COMMITTER_NAME: "Ink Gateway"
+      GIT_COMMITTER_EMAIL: "bot@ink-gateway.philapps.com"
     volumes:
       - data:/data
     expose:

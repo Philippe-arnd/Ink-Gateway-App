@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use crate::auth::CurrentUser;
 use crate::blocking;
 use crate::error::{AppError, AppResult};
+use crate::routes::util::valid_slug;
 use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
@@ -24,13 +25,6 @@ pub struct CreateBook {
     /// directory, so a client can't point the API at an arbitrary path on
     /// the server's filesystem.
     pub slug: String,
-}
-
-fn valid_slug(slug: &str) -> bool {
-    !slug.is_empty()
-        && slug
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 /// Loads a book's repo path, verifying `user` owns it. Shared by every route
