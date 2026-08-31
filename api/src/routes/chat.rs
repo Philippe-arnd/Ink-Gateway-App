@@ -59,6 +59,8 @@ pub async fn chat(
         history,
         repo_path,
         Some(DEFAULT_TOOLS),
+        state,
+        user.id,
     );
     Ok(Sse::new(stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15))))
 }

@@ -15,6 +15,17 @@ import { PlainDoc, PlainBlock, PlainTextKeymap, charOffsetToPos, posToCharOffset
 import { IconArrowRight, IconCheck, IconComment, IconPencil, IconSparkles } from "../icons";
 import { SessionModal } from "../components/SessionModal";
 import { DiffView } from "../components/DiffView";
+import { AccountMenu } from "../components/AccountMenu";
+
+// Maps an editor sidebar tab to the foundational file it edits — the other
+// four of `ink_core::edit::FOUNDATION_PATHS`' five allow-listed files
+// (Chapter_01.md lives under "Chapters material", not a sidebar tab here).
+const GLOBAL_MATERIAL_TABS: Record<string, string> = {
+  soul: "Soul.md",
+  outline: "Outline.md",
+  characters: "Characters.md",
+  lore: "Lore.md",
+};
 
 function diffRange(oldText: string, newText: string): { start: number; end: number; content: string } {
   let start = 0;
@@ -55,6 +66,9 @@ export function Editor() {
   const [sessionLog, setSessionLog] = useState<ChatLine[]>([]);
   const [sessionTag, setSessionTag] = useState<string | null>(null);
   const [sessionDiff, setSessionDiff] = useState<SessionDiff | null>(null);
+  const [globalDrafts, setGlobalDrafts] = useState<Record<string, string>>({});
+  const [globalSaving, setGlobalSaving] = useState(false);
+  const [modifiedFoundations, setModifiedFoundations] = useState<string[]>([]);
   const lastSynced = useRef("");
   const saveTimer = useRef<number | null>(null);
 
@@ -123,6 +137,20 @@ export function Editor() {
     if (!id) return;
     await api.resolveComment(id, commentId);
     setComments(await api.listComments(id));
+  }
+
+  async function saveGlobalMaterial(tab: string) {
+    const filename = GLOBAL_MATERIAL_TABS[tab];
+    const content = globalDrafts[tab];
+    if (!id || filename === undefined || content === undefined) return;
+    setGlobalSaving(true);
+    try {
+      await api.saveGlobalMaterial(id, `Global Material/${filename}`, content);
+      setModifiedFoundations((m) => (m.includes(filename) ? m : [...m, filename]));
+      await refresh();
+    } finally {
+      setGlobalSaving(false);
+    }
   }
 
   async function restoreVersion(commit: string) {
@@ -220,10 +248,13 @@ export function Editor() {
   return (
     <div className="editor-layout">
       <aside className="sidebar">
-        <Link to="/books" className="brand">
-          <img src="/logo.svg" alt="" className="logo" />
-          <span>Ink Gateway</span>
-        </Link>
+        <div className="sidebar-brand-row">
+          <Link to="/books" className="brand">
+            <img src="/logo.svg" alt="" className="logo" />
+            <span>Ink Gateway</span>
+          </Link>
+          <AccountMenu />
+        </div>
         <nav className="tabs">
           {(["prose", "soul", "outline", "characters", "lore"] as const).map((t) => (
             <button key={t} className={t === tab ? "active" : ""} onClick={() => setTab(t)}>
@@ -297,12 +328,34 @@ export function Editor() {
 
         {tab !== "prose" && (
           <div className="subdoc-view">
-            <pre>{subdoc(tab)?.content ?? "(vide)"}</pre>
+            <textarea
+              className="subdoc-editor"
+              value={globalDrafts[tab] ?? subdoc(tab)?.content ?? ""}
+              onChange={(e) => setGlobalDrafts((d) => ({ ...d, [tab]: e.target.value }))}
+            />
+            <button
+              className="subdoc-save"
+              disabled={globalSaving}
+              onClick={() => saveGlobalMaterial(tab)}
+            >
+              {globalSaving ? "Enregistrement…" : "Enregistrer"}
+            </button>
           </div>
         )}
       </aside>
 
       <main className="canvas">
+        {modifiedFoundations.length > 0 && (
+          <div className="consistency-banner">
+            <span>
+              Tu as modifié {modifiedFoundations.join(", ")} — vérifie que le reste du livre
+              (chapitres, personnages, intrigue) reste cohérent avec ce changement.
+            </span>
+            <button className="link" onClick={() => setModifiedFoundations([])}>
+              Ignorer
+            </button>
+          </div>
+        )}
         <div className="canvas-toolbar">
           <button onClick={addCommentToSelection} className="with-icon">
             <IconComment size={15} />

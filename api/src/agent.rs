@@ -183,6 +183,18 @@ pub async fn execute_tool(repo_path: PathBuf, name: &str, input: &Value) -> Resu
     Ok(result.to_string())
 }
 
+/// Best-effort: records whether the user's stored credential is currently
+/// good, so the frontend's account-menu badge reflects reality without
+/// waiting for the user to revisit Settings. Failures here never interrupt
+/// the SSE stream — this is a UX nicety, not core correctness.
+async fn set_last_error(state: &AppState, user_id: &str, error: Option<&str>) {
+    let _ = sqlx::query("UPDATE api_keys SET last_error = ? WHERE user_id = ?")
+        .bind(error)
+        .bind(user_id)
+        .execute(&state.db)
+        .await;
+}
+
 /// Runs the tool-use loop, yielding one SSE event per text chunk / tool call
 /// / tool result. `allowed_tools`, when set, is passed to the provider so it
 /// only ever *sees* (and therefore can only call) that subset — e.g. a
@@ -194,16 +206,33 @@ pub fn run_loop(
     mut history: Vec<Turn>,
     repo_path: PathBuf,
     allowed_tools: Option<&'static [&'static str]>,
+    state: AppState,
+    user_id: String,
 ) -> impl Stream<Item = Result<Event, Infallible>> {
     stream! {
         for _ in 0..MAX_TOOL_TURNS {
             let events = match provider.run_turn(&system_prompt, &history, allowed_tools).await {
                 Ok(events) => events,
                 Err(err) => {
-                    yield Ok(Event::default().event("error").data(err.to_string()));
+                    let message = err.to_string();
+                    // Strip the internal "auth_error: " marker before it
+                    // reaches the browser — it's a classification tag for
+                    // `set_last_error`, not something the user should see.
+                    let visible = match message.strip_prefix("auth_error: ") {
+                        Some(reason) => {
+                            set_last_error(&state, &user_id, Some(reason)).await;
+                            reason.to_string()
+                        }
+                        None => message,
+                    };
+                    yield Ok(Event::default().event("error").data(visible));
                     return;
                 }
             };
+
+            // A turn just succeeded — the credential works, clear any stale
+            // "needs attention" flag left over from an earlier failed run.
+            set_last_error(&state, &user_id, None).await;
 
             let mut had_tool_call = false;
 

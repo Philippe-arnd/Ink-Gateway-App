@@ -159,6 +159,62 @@ textarea {
   margin-top: 0;
 }
 
+.account-menu {
+  position: relative;
+}
+
+.account-menu summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  color: inherit;
+}
+
+.account-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.account-menu summary:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.badge-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.account-menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  background: white;
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 140px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  z-index: 20;
+}
+
+.account-menu-dropdown .link {
+  margin: 0;
+  text-align: left;
+}
+
 .book-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -422,11 +478,18 @@ textarea {
   overflow-y: auto;
 }
 
+.sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.2rem;
+}
+
 .sidebar .brand {
   color: #ece8f5;
   font-family: "Fraunces", serif;
   font-size: 1.05rem;
-  margin-bottom: 1.2rem;
+  margin-bottom: 0;
 }
 
 .sidebar .brand .logo {
@@ -604,12 +667,56 @@ textarea {
   font-size: 0.72rem;
 }
 
-.subdoc-view pre {
-  white-space: pre-wrap;
+.subdoc-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.subdoc-editor {
+  width: 100%;
+  min-height: 340px;
+  resize: vertical;
+  background: var(--navy-light);
+  border: 1px solid #453e5c;
+  border-radius: 6px;
+  padding: 0.7rem;
   font-family: "Fraunces", serif;
   font-size: 0.85rem;
   line-height: 1.5;
   color: #d8d3e6;
+}
+
+.subdoc-save {
+  align-self: flex-start;
+  background: var(--amber);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.8rem;
+}
+
+.subdoc-save:disabled {
+  opacity: 0.6;
+}
+
+.consistency-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #fdf0d9;
+  color: #6b4a12;
+  border-bottom: 1px solid var(--amber);
+  padding: 0.6rem 1.5rem;
+  font-size: 0.82rem;
+}
+
+.consistency-banner .link {
+  margin: 0;
+  color: #6b4a12;
+  white-space: nowrap;
 }
 
 .canvas {

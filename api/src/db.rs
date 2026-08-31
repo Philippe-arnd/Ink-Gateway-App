@@ -69,5 +69,22 @@ async fn migrate(pool: &SqlitePool) -> Result<()> {
     .await
     .context("failed to run schema migration")?;
 
+    // api_keys gained `last_error` after the initial deploy — SQLite has no
+    // `ADD COLUMN IF NOT EXISTS`, so check first via PRAGMA table_info rather
+    // than risk a "duplicate column" error against a database that already
+    // has real rows in it.
+    let has_last_error: bool = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM pragma_table_info('api_keys') WHERE name = 'last_error'",
+    )
+    .fetch_one(pool)
+    .await?
+        > 0;
+    if !has_last_error {
+        sqlx::query("ALTER TABLE api_keys ADD COLUMN last_error TEXT")
+            .execute(pool)
+            .await
+            .context("failed to add last_error column to api_keys")?;
+    }
+
     Ok(())
 }

@@ -116,3 +116,32 @@ pub async fn get(
     let context = blocking::run(move || ink_core::context::get_book_context(&repo_path)).await?;
     Ok(Json(context))
 }
+
+#[derive(Debug, Deserialize)]
+pub struct SaveGlobalMaterial {
+    pub path: String,
+    pub content: String,
+}
+
+/// Lets the author directly edit a foundational file (Soul.md etc.) —
+/// reuses the same allow-listed write primitive the AI's `rewrite_global_file`
+/// tool calls, so a client can't be pointed at a path outside `Global
+/// Material`/`Chapters material` any more than the AI can.
+pub async fn save_global_material(
+    State(state): State<AppState>,
+    user: CurrentUser,
+    Path(id): Path<String>,
+    Json(body): Json<SaveGlobalMaterial>,
+) -> AppResult<Json<serde_json::Value>> {
+    let repo_path = load_owned_repo_path(&state, &user, &id).await?;
+    let result = blocking::run(move || {
+        ink_core::edit::write_foundation_file(
+            &repo_path,
+            &body.path,
+            &body.content,
+            "edit: foundational file (manual)",
+        )
+    })
+    .await?;
+    Ok(Json(result))
+}

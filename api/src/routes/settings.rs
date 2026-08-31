@@ -16,6 +16,11 @@ pub struct ApiKeyStatus {
     /// Last 4 characters only — the raw key is never sent back to the browser
     /// once saved, only this fingerprint for display ("...ab12").
     pub last_four: Option<String>,
+    /// Set by `agent::run_loop` when the provider rejects this credential
+    /// (401/403) during an actual session/chat run — cleared on the next
+    /// successful run or re-save. Drives the account-menu "needs attention"
+    /// badge without waiting for the user to revisit Settings.
+    pub last_error: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -38,25 +43,27 @@ pub async fn get_api_key(
     State(state): State<AppState>,
     user: CurrentUser,
 ) -> AppResult<Json<ApiKeyStatus>> {
-    let row = sqlx::query_as::<_, (String, String, String)>(
-        "SELECT provider, key_type, last_four FROM api_keys WHERE user_id = ?",
+    let row = sqlx::query_as::<_, (String, String, String, Option<String>)>(
+        "SELECT provider, key_type, last_four, last_error FROM api_keys WHERE user_id = ?",
     )
     .bind(&user.id)
     .fetch_optional(&state.db)
     .await?;
 
     Ok(Json(match row {
-        Some((provider, key_type, last_four)) => ApiKeyStatus {
+        Some((provider, key_type, last_four, last_error)) => ApiKeyStatus {
             configured: true,
             provider: Some(provider),
             key_type: Some(key_type),
             last_four: Some(last_four),
+            last_error,
         },
         None => ApiKeyStatus {
             configured: false,
             provider: None,
             key_type: None,
             last_four: None,
+            last_error: None,
         },
     }))
 }
@@ -122,7 +129,8 @@ pub async fn set_api_key(
             key_type = excluded.key_type, \
             encrypted_key = excluded.encrypted_key, \
             last_four = excluded.last_four, \
-            updated_at = excluded.updated_at",
+            updated_at = excluded.updated_at, \
+            last_error = NULL",
     )
     .bind(&user.id)
     .bind(&body.provider)
@@ -138,6 +146,7 @@ pub async fn set_api_key(
         provider: Some(body.provider),
         key_type: Some(body.key_type),
         last_four: Some(last_four),
+        last_error: None,
     }))
 }
 
