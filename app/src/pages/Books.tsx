@@ -14,7 +14,7 @@ export function Books() {
       .listBooks()
       .then(setBooks)
       .catch((err) => {
-        if (err instanceof ApiError && err.status === 401) navigate("/login");
+        if (!(err instanceof ApiError) || err.status === 401) navigate("/login");
       });
   }, [navigate]);
 

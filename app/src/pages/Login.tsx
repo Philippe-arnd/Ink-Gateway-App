@@ -3,7 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api";
 
 export function Login() {
-  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
+  const initialMode = new URLSearchParams(window.location.search).get("mode") === "register"
+    ? "register"
+    : "login";
+  const [mode, setMode] = useState<"login" | "register" | "forgot">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inviteCode, setInviteCode] = useState("");

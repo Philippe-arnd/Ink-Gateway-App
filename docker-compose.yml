@@ -28,5 +28,14 @@ services:
     expose:
       - "80"
 
+  landing:
+    build:
+      context: ./landing
+      args:
+        PUBLIC_APP_URL: ${APP_PUBLIC_URL:-https://app.ink-gateway.philapps.com}
+    restart: unless-stopped
+    expose:
+      - "80"
+
 volumes:
   data:
