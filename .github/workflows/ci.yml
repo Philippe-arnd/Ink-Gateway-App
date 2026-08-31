@@ -1,37 +1,25 @@
 name: CI
 on: [push, pull_request]
 jobs:
-  landing:
+  # Builds the image that actually ships, rather than running the two npm
+  # builds on their own: that also covers the COPY paths and nginx.conf in
+  # web/Dockerfile, which nothing validated before #34 except production.
+  web:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    defaults:
-      run:
-        working-directory: landing
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: landing/package-lock.json
-      - run: npm ci
-      - run: npm run build
-
-  app:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    defaults:
-      run:
-        working-directory: app
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: app/package-lock.json
-      - run: npm ci
-      - run: npm run build
+      - run: docker build -f web/Dockerfile -t ink-gateway-web .
+      # The SPA is served from a real /app/ subdirectory, not an nginx alias —
+      # assert both entry points exist so a wrong COPY destination fails here
+      # instead of silently 404ing in production.
+      - name: Check both frontends landed in the image
+        run: |
+          docker run --rm ink-gateway-web sh -c '
+            test -f /usr/share/nginx/html/index.html &&
+            test -f /usr/share/nginx/html/app/index.html'
+      - name: Check the nginx config is valid
+        run: docker run --rm ink-gateway-web nginx -t
 
   api:
     runs-on: ubuntu-latest

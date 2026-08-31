@@ -1,6 +1,6 @@
-# Beta deployment: no Postgres, no Redis, no S3 — book content lives in git
-# working copies on the `books` volume; the SQLite registry (users/sessions/
-# book index) lives on the `data` volume. See api/.env.example for the
+# Beta deployment: no Postgres, no Redis, no S3. One `data` volume holds both
+# the book git working copies (/data/books) and the SQLite registry of
+# users/sessions/books (/data/ink-gateway.db). See api/.env.example for the
 # required secrets (INK_GATEWAY_MASTER_KEY, INK_GATEWAY_INVITE_CODE).
 services:
   api:
@@ -19,10 +19,10 @@ services:
     expose:
       - "8787"
     # Coolify's per-service Domain field alone doesn't reliably disambiguate
-    # /app vs /api vs / on one shared domain for a docker-compose app (see
+    # paths on one shared domain for a docker-compose app (see
     # Ink-Gateway-App#34) — explicit labels + priority instead of relying on
-    # auto-generated routers. landing keeps its Coolify-managed router as the
-    # catch-all; these just need to consistently outrank it.
+    # auto-generated routers. `web` keeps its Coolify-managed router as the
+    # catch-all on the bare domain; this one just has to outrank it on /api.
     labels:
       - traefik.enable=true
       - traefik.http.routers.ink-gateway-api.rule=Host(`${DOMAIN:-ink-gateway.philapps.com}`) && PathPrefix(`/api`)
@@ -33,28 +33,16 @@ services:
       - traefik.http.services.ink-gateway-api.loadbalancer.server.port=8787
       - traefik.docker.network=coolify
 
-  app:
+  # One nginx serving the Astro landing at / and the React SPA at /app/ —
+  # they were two separate services until #34 (see web/Dockerfile). This one
+  # owns the bare domain as the catch-all, so it needs no Traefik labels of
+  # its own: assign the domain to it in Coolify's Domains tab.
+  web:
     build:
-      context: ./app
+      context: .
+      dockerfile: web/Dockerfile
       args:
         VITE_API_BASE: ${API_PUBLIC_URL:-https://ink-gateway.philapps.com/api}
-    restart: unless-stopped
-    expose:
-      - "80"
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.ink-gateway-app.rule=Host(`${DOMAIN:-ink-gateway.philapps.com}`) && PathPrefix(`/app`)
-      - traefik.http.routers.ink-gateway-app.entrypoints=https
-      - traefik.http.routers.ink-gateway-app.tls=true
-      - traefik.http.routers.ink-gateway-app.tls.certresolver=letsencrypt
-      - traefik.http.routers.ink-gateway-app.priority=100
-      - traefik.http.services.ink-gateway-app.loadbalancer.server.port=80
-      - traefik.docker.network=coolify
-
-  landing:
-    build:
-      context: ./landing
-      args:
         PUBLIC_APP_URL: ${APP_PUBLIC_URL:-https://ink-gateway.philapps.com/app}
     restart: unless-stopped
     expose:

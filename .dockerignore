@@ -1,0 +1,12 @@
+# The `web` image builds with the repo root as its context (it needs both
+# landing/ and app/), so keep the heavy and the sensitive out of the upload.
+# Note this file does NOT apply to the `api` service — that one builds with
+# ./api as its context and would need its own api/.dockerignore.
+.git
+**/node_modules
+**/dist
+api/target
+Brainstorming
+**/.env
+**/.env.*
+!**/.env.example

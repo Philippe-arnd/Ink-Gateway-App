@@ -11,10 +11,16 @@ An earlier plan (`Brainstorming/SPECS_V1.md`, `Brainstorming/ARCHITECTURE.md`) p
 ## Repository Structure
 
 ```
-landing/    # Astro marketing site (unchanged, existing)
+landing/    # Astro marketing site (static, no runtime deps)
 api/        # Rust API (Axum), depends on ink-gateway's `ink_core` lib as a git dependency
 app/        # React + Vite + TypeScript + TipTap frontend
+web/        # Dockerfile + nginx.conf building landing/ and app/ into ONE image
 ```
+
+`landing/` and `app/` stay separate source trees but ship as a single nginx
+container (`web`), serving the marketing site at `/` and the SPA at `/app`.
+They were two containers until #34 — three services sharing one Coolify
+domain is what broke path routing there.
 
 ## Architecture
 
@@ -74,4 +80,4 @@ cd app && npm run build   # runs `tsc -b` type-check + vite build
 
 ## Deployment
 
-Docker Compose (`docker-compose.yml`), two services (`api`, `app`) + one named volume for SQLite + book git repos. **See `DEPLOYMENT.md`** for the full env var reference, the reverse-proxy requirement (rate limiting trusts `X-Forwarded-For`), and backup guidance. No deploy has been run from this environment — Coolify/VPS access belongs to Phil.
+Docker Compose (`docker-compose.yml`), two services (`web`, `api`) + one named volume for SQLite + book git repos. Deployed on Coolify at `ink-gateway.philapps.com`: `web` owns the bare domain via its Domains-tab entry, `api` is pinned to `/api` by explicit Traefik labels in the compose file (Coolify's auto-generated routers couldn't split one domain across services — #34). **See `DEPLOYMENT.md`** for the full env var reference, the reverse-proxy requirement (rate limiting trusts `X-Forwarded-For`), and backup guidance.

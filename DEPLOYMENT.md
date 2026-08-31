@@ -1,19 +1,15 @@
 # Deployment
 
-Three containers (`landing`, `api`, `app`), one shared volume. No Postgres,
-no Redis, no S3 — book content lives in git working copies on disk, the
-only database is a small SQLite file for users/sessions/the book registry.
-See `CLAUDE.md` for why.
+Two containers (`web`, `api`), one volume. No Postgres, no Redis, no S3 —
+book content lives in git working copies on disk, the only database is a
+small SQLite file for users/sessions/the book registry. See `CLAUDE.md` for
+why.
 
 ```
-                         ┌─────────────┐
-  browser ───HTTPS───▶   │landing(nginx)│  static Astro marketing site, at /
-                         └─────────────┘  Sign in/up links out to /app
-                                │
-                                ▼
-                         ┌─────────────┐
-                         │  app (nginx) │  static React build, at /app
-                         └─────────────┘
+                         ┌──────────────┐
+  browser ───HTTPS───▶   │  web (nginx) │  Astro marketing site, at /
+                         │              │  React SPA build,      at /app
+                         └──────────────┘
                                 │  fetch() same-origin, credentials: include
                                 ▼
                          ┌─────────────┐        ┌─────────────────────┐
@@ -25,35 +21,38 @@ See `CLAUDE.md` for why.
                     (outbound only, user's own keys)
 ```
 
-All three services build from this repo's `docker-compose.yml` and share a
+Both services build from this repo's `docker-compose.yml` and share a
 **single domain**, split by path prefix (`/`, `/app`, `/api`) rather than by
 subdomain — same origin end to end, so the app's session cookie and the
-api's CORS config don't have to deal with cross-origin at all. Nothing here
-has been deployed from the environment that wrote it — this is the reference
-for whoever runs it (Coolify or otherwise), not a record of an actual run.
+api's CORS config don't have to deal with cross-origin at all.
+
+The marketing site and the SPA are two separate source trees (`landing/` is
+Astro, `app/` is Vite) that build into **one** nginx image (`web/Dockerfile`,
+a stage each, artifacts merged in the final stage). They were two containers
+until #34: the landing is a single static page with no runtime dependencies,
+and giving it its own container, nginx and Traefik router bought nothing
+except a third service competing for the same domain.
 
 ## Prerequisites
 
-- A reverse proxy in front of all three containers that terminates TLS,
-  routes by path prefix (`/` → `landing`, `/app` → `app`, `/api` → `api`,
-  **unstripped** — `api`'s own routes are already prefixed `/api/...`, see
-  `api/src/routes/mod.rs`), and sets `X-Forwarded-For` correctly (Coolify's
-  built-in Traefik does all of this). **The `api` container must never be
-  reachable directly, bypassing the proxy** — the auth rate limiter trusts
-  `X-Forwarded-For`/`Forwarded` to identify clients (`SmartIpKeyExtractor`),
-  and a client that can reach the API directly could forge that header to
-  dodge the limit entirely.
-- One domain, with `app`/`api` routed to their path prefix via **explicit
-  Traefik labels in `docker-compose.yml`** (`ink-gateway-app`/`ink-gateway-api`
-  routers, `priority=100`), not Coolify's per-service Domains tab alone —
-  relying only on the Domains tab for a multi-service docker-compose app
-  doesn't reliably disambiguate `/app`/`/api` from the bare domain (see
-  [Ink-Gateway-App#34](https://github.com/Philippe-arnd/Ink-Gateway-App/issues/34)):
-  every path fell through to whichever service owned the bare `Host()`
-  rule (`landing`). If you deploy to a domain other than
-  `ink-gateway.philapps.com`, set the `DOMAIN` env var (build/runtime
-  variable in Coolify) so the labels match — `landing` still just needs
-  its own Domain set normally in Coolify's UI, that router is unaffected.
+- A reverse proxy in front of both containers that terminates TLS, routes
+  `/api` to `api` (**unstripped** — `api`'s own routes are already prefixed
+  `/api/...`, see `api/src/routes/mod.rs`) and everything else to `web`, and
+  sets `X-Forwarded-For` correctly (Coolify's built-in Traefik does all of
+  this). **The `api` container must never be reachable directly, bypassing
+  the proxy** — the auth rate limiter trusts `X-Forwarded-For`/`Forwarded` to
+  identify clients (`SmartIpKeyExtractor`), and a client that can reach the
+  API directly could forge that header to dodge the limit entirely.
+- One domain. `web` owns it as the catch-all — on Coolify, assign the domain
+  to `web` in the application's Domains tab, nothing more. `api` is routed to
+  `/api` by **explicit Traefik labels in `docker-compose.yml`**
+  (`ink-gateway-api` router, `priority=100`) rather than by its Domains-tab
+  entry: relying on the Domains tab alone to split one domain across several
+  compose services doesn't reliably disambiguate the paths (see
+  [Ink-Gateway-App#34](https://github.com/Philippe-arnd/Ink-Gateway-App/issues/34)),
+  every path fell through to whichever service owned the bare `Host()` rule.
+  If you deploy to a domain other than `ink-gateway.philapps.com`, set the
+  `DOMAIN` env var (build/runtime variable in Coolify) so the label matches.
 - A [Resend](https://resend.com) account + a verified sending domain, for
   password-reset emails.
 - An Anthropic and/or Gemini API key is **not** an operator secret — each
@@ -75,14 +74,17 @@ for whoever runs it (Coolify or otherwise), not a record of an actual run.
 | `GEMINI_MODEL` | optional | Overrides the default (`gemini-2.5-flash`). |
 | `DATABASE_URL`, `INK_GATEWAY_BOOKS_DIR`, `BIND_ADDR`, `FRONTEND_ORIGIN`, `RUST_LOG` | set by `docker-compose.yml` | Only override these for non-Docker deployment. |
 
-### Build args (`app`/`landing`, set via `docker-compose.yml` / Coolify build variables)
+### Build args (`web`, set via `docker-compose.yml` / Coolify build variables)
+
+Both frontends are compiled into the `web` image, so all of these are
+**build-time** — changing any of them means rebuilding `web`, not restarting it.
 
 | Variable | Required | Notes |
 |---|---|---|
-| `API_PUBLIC_URL` | **yes** | The public URL of the `api` service (e.g. `https://yourdomain.com/api`), baked into the `app` frontend build at build time (Vite env vars are compile-time). Changing it means rebuilding the `app` image. |
-| `FRONTEND_ORIGIN` | **yes** (on `api`) | The public origin serving `app` — since `app`/`api`/`landing` share one domain, this is just that domain (e.g. `https://yourdomain.com`, no path, no trailing slash). Used for CORS `allow_origin` and the link inside password-reset emails. |
-| `APP_PUBLIC_URL` | recommended | The public URL of `app` (e.g. `https://yourdomain.com/app`), baked into the `landing` build so its Sign in/up links point at the right place. |
-| `VITE_BASE_PATH` (on `app`'s own Dockerfile, not compose) | no | Where `app` is served from; defaults to `/app/`. Only needed if you move `app` off that path — also update `nginx.conf`'s `location /app/` block to match. |
+| `API_PUBLIC_URL` | **yes** | The public URL of the `api` service (e.g. `https://yourdomain.com/api`), baked into the SPA build (Vite env vars are compile-time). |
+| `FRONTEND_ORIGIN` | **yes** (on `api`) | The public origin serving the SPA — since `web`/`api` share one domain, this is just that domain (e.g. `https://yourdomain.com`, no path, no trailing slash). Used for CORS `allow_origin` and the link inside password-reset emails. |
+| `APP_PUBLIC_URL` | recommended | The public URL of the SPA (e.g. `https://yourdomain.com/app`), baked into the Astro build so its Sign in/up links point at the right place. |
+| `VITE_BASE_PATH` (on `web/Dockerfile`, not compose) | no | Where the SPA is served from; defaults to `/app/`. Moving it means updating three things in step: this arg, the `COPY --from=app` destination in `web/Dockerfile`, and the `location /app/` block in `web/nginx.conf`. |
 
 ## Deploy
 
