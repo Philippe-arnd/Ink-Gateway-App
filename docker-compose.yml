@@ -53,8 +53,8 @@ services:
       context: .
       dockerfile: web/Dockerfile
       args:
-        # Ends in /api on purpose — the client prefixes /api too and Coolify
-        # strips one back off. Don't simplify without reading web/Dockerfile.
+        # Ends in /api because Coolify's stripprefix removes it before the
+        # request reaches Axum, whose routes are unprefixed. See web/Dockerfile.
         VITE_API_BASE: ${API_PUBLIC_URL:-https://ink-gateway.philapps.com/api}
         PUBLIC_APP_URL: ${APP_PUBLIC_URL:-https://ink-gateway.philapps.com/app}
     restart: unless-stopped
