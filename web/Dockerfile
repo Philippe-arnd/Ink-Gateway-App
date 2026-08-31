@@ -23,7 +23,11 @@ WORKDIR /build
 COPY app/package.json app/package-lock.json ./
 RUN npm ci
 COPY app/ .
-ARG VITE_API_BASE=/api
+# The API's *origin*, with no path: app/src/api.ts already prefixes every
+# request path with /api (`${BASE}${path}`, path = "/api/auth/login"). Putting
+# /api here too sends /api/api/... — which only ever worked because Coolify was
+# stripping one /api back off. See DEPLOYMENT.md.
+ARG VITE_API_BASE=https://ink-gateway.philapps.com
 ENV VITE_API_BASE=$VITE_API_BASE
 ARG VITE_BASE_PATH=/app/
 ENV VITE_BASE_PATH=$VITE_BASE_PATH
