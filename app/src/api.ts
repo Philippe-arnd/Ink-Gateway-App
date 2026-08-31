@@ -87,6 +87,7 @@ export interface ApiKeyStatus {
   provider: string | null;
   key_type: string | null;
   last_four: string | null;
+  last_error: string | null;
 }
 
 export interface OnboardingQuestion {
@@ -121,6 +122,11 @@ export const api = {
   createBook: (title: string, slug: string) =>
     request<Book>("/books", { method: "POST", body: JSON.stringify({ title, slug }) }),
   getBook: (id: string) => request<BookContext>(`/books/${id}`),
+  saveGlobalMaterial: (id: string, path: string, content: string) =>
+    request<{ word_count: number; char_count: number }>(`/books/${id}/global-material`, {
+      method: "POST",
+      body: JSON.stringify({ path, content }),
+    }),
 
   insertText: (id: string, position: number, content: string) =>
     request(`/books/${id}/edit/insert`, {

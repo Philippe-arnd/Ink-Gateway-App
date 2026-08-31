@@ -13,7 +13,7 @@ export function Settings() {
 
   async function remove() {
     await api.deleteApiKey();
-    setStatus({ configured: false, provider: null, key_type: null, last_four: null });
+    setStatus({ configured: false, provider: null, key_type: null, last_four: null, last_error: null });
   }
 
   return (
@@ -42,6 +42,11 @@ export function Settings() {
             <button className="link" onClick={remove}>
               Supprimer
             </button>
+          </p>
+        )}
+        {status?.last_error && (
+          <p className="error">
+            Dernière erreur de l'agent avec cette clé : {status.last_error}
           </p>
         )}
 

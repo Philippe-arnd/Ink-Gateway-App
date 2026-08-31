@@ -135,6 +135,12 @@ impl LlmProvider for GeminiProvider {
                     .and_then(|e| e.get("message"))
                     .and_then(|m| m.as_str())
                     .unwrap_or("unknown error");
+                // 401/403 means the credential itself is bad/revoked — tagged
+                // so `agent::run_loop` can flag it for the settings badge,
+                // as opposed to a rate limit or a provider-side 5xx.
+                if matches!(status.as_u16(), 401 | 403) {
+                    bail!("auth_error: Gemini API error ({status}): {message}");
+                }
                 bail!("Gemini API error ({status}): {message}");
             }
 

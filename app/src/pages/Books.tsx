@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, ApiError, type Book } from "../api";
+import { AccountMenu } from "../components/AccountMenu";
 
 export function Books() {
   const [books, setBooks] = useState<Book[] | null>(null);
@@ -29,11 +30,6 @@ export function Books() {
     }
   }
 
-  async function logout() {
-    await api.logout();
-    navigate("/login");
-  }
-
   return (
     <div className="books-screen">
       <header>
@@ -47,12 +43,7 @@ export function Books() {
               + Nouveau livre
             </Link>
           )}
-          <Link to="/settings" className="link">
-            Réglages
-          </Link>
-          <button className="link" onClick={logout}>
-            Se déconnecter
-          </button>
+          <AccountMenu />
         </div>
       </header>
 

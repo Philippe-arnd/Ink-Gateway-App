@@ -73,6 +73,10 @@ pub fn router() -> Router<AppState> {
         .route("/onboarding/questions", get(onboarding::questions))
         .route("/onboarding/start", post(onboarding::start))
         .route("/books/{id}", get(books::get))
+        .route(
+            "/books/{id}/global-material",
+            post(books::save_global_material),
+        )
         .route("/books/{id}/edit/insert", post(edit::insert_text))
         .route("/books/{id}/edit/rewrite", post(edit::rewrite_range))
         .route(

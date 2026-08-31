@@ -165,6 +165,8 @@ pub async fn start(
         vec![user_turn],
         repo_path,
         allowed_tools,
+        state,
+        user.id,
     );
 
     let stream = async_stream::stream! {
