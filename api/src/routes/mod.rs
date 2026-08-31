@@ -41,6 +41,11 @@ fn auth_rate_limit() -> GovernorLayer<
 }
 
 pub fn router() -> Router<AppState> {
+    // Coolify's own container healthcheck probes GET / on the container
+    // directly (bypassing Traefik's /api path routing), so this needs to
+    // exist even though nothing external ever reaches it that way.
+    let health_route = Router::new().route("/", get(|| async { "ok" }));
+
     let auth_routes = Router::new()
         .route("/api/auth/register", post(auth::register))
         .route("/api/auth/login", post(auth::login))
@@ -74,4 +79,5 @@ pub fn router() -> Router<AppState> {
         .route("/api/books/{id}/chat", post(chat::chat))
         .route("/api/books/{id}/sessions", post(sessions::start))
         .route("/api/books/{id}/sessions/{tag}/diff", get(sessions::diff))
+        .merge(health_route)
 }
