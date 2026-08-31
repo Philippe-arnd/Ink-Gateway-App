@@ -12,6 +12,7 @@ mod state;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use anyhow::Context;
 use tower_http::cors::{AllowCredentials, CorsLayer};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
@@ -46,9 +47,20 @@ async fn main() -> anyhow::Result<()> {
         .map(|v| v == "true")
         .unwrap_or(false);
 
-    std::fs::create_dir_all(&books_dir)?;
+    // Any of these three failing returns Err from main, which exits the
+    // process — and under `restart: unless-stopped` that reads from the
+    // outside as an unexplained crash-loop, with the actual cause only in the
+    // stderr of a container that's already gone (see #34). Announce each step
+    // so `docker logs` on a dead container shows how far startup got, and
+    // give the one bare `?` here the context its neighbours already carry.
+    tracing::info!("creating books directory at {books_dir}");
+    std::fs::create_dir_all(&books_dir)
+        .with_context(|| format!("failed to create books directory at {books_dir}"))?;
 
+    tracing::info!("connecting to database at {database_url}");
     let db = db::connect(&database_url).await?;
+
+    tracing::info!("loading master key from INK_GATEWAY_MASTER_KEY");
     let cipher = Cipher::from_env()?;
     let state = AppState::new(db, cipher, PathBuf::from(books_dir));
 
@@ -98,7 +110,9 @@ async fn main() -> anyhow::Result<()> {
         .layer(RequestBodyLimitLayer::new(MAX_BODY_BYTES));
 
     tracing::info!("ink-gateway-api listening on {bind_addr}");
-    let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
+    let listener = tokio::net::TcpListener::bind(&bind_addr)
+        .await
+        .with_context(|| format!("failed to bind {bind_addr}"))?;
     // The auth rate limiter keys on peer IP, which requires connect-info to
     // be threaded through explicitly — the default make-service doesn't
     // carry it.
