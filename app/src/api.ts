@@ -89,6 +89,13 @@ export interface ApiKeyStatus {
   last_four: string | null;
 }
 
+export interface OnboardingQuestion {
+  question: string;
+  hint: string;
+  target_file: string;
+  options?: string[];
+}
+
 export const api = {
   register: (email: string, password: string, invite_code: string) =>
     request<UserView>("/api/auth/register", {
@@ -153,6 +160,13 @@ export const api = {
 
   getSessionDiff: (bookId: string, tag: string) =>
     request<SessionDiff>(`/api/books/${bookId}/sessions/${encodeURIComponent(tag)}/diff`),
+
+  getOnboardingQuestions: () => request<OnboardingQuestion[]>("/api/onboarding/questions"),
+  startOnboarding: (title: string, author: string, slug: string, answers: [number, string][]) =>
+    request<Book>("/api/onboarding/start", {
+      method: "POST",
+      body: JSON.stringify({ title, author, slug, answers }),
+    }),
 };
 
 interface RawSseEvent {

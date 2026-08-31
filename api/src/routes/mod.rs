@@ -3,8 +3,10 @@ pub mod books;
 pub mod chat;
 pub mod comments;
 pub mod edit;
+pub mod onboarding;
 pub mod sessions;
 pub mod settings;
+pub mod util;
 pub mod versions;
 
 use axum::Router;
@@ -63,6 +65,8 @@ pub fn router() -> Router<AppState> {
                 .delete(settings::delete_api_key),
         )
         .route("/api/books", get(books::list).post(books::create))
+        .route("/api/onboarding/questions", get(onboarding::questions))
+        .route("/api/onboarding/start", post(onboarding::start))
         .route("/api/books/{id}", get(books::get))
         .route("/api/books/{id}/edit/insert", post(edit::insert_text))
         .route("/api/books/{id}/edit/rewrite", post(edit::rewrite_range))

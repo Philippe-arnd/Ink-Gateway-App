@@ -42,6 +42,11 @@ export function Books() {
           <h1>Ink Gateway</h1>
         </div>
         <div className="header-actions">
+          {books !== null && books.length > 0 && (
+            <Link to="/onboarding" className="link">
+              + Nouveau livre
+            </Link>
+          )}
           <Link to="/settings" className="link">
             Réglages
           </Link>
@@ -51,9 +56,21 @@ export function Books() {
         </div>
       </header>
 
+      {books?.length === 0 && (
+        <div className="empty-state">
+          <h2>Commence ton premier livre</h2>
+          <p className="muted">
+            Un assistant te guide en quelques étapes : clé API, puis quelques questions sur ton
+            histoire.
+          </p>
+          <Link to="/onboarding" className="cta-button">
+            Créer mon livre
+          </Link>
+        </div>
+      )}
+
       <section className="book-grid">
         {books === null && <p>Chargement…</p>}
-        {books?.length === 0 && <p>Aucun livre pour l'instant.</p>}
         {books?.map((b) => (
           <Link to={`/books/${b.id}`} key={b.id} className="book-card">
             <span className="book-title">{b.title}</span>
