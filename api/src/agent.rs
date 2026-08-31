@@ -164,6 +164,19 @@ pub async fn execute_tool(repo_path: PathBuf, name: &str, input: &Value) -> Resu
                 blocking::run(move || ink_core::comments::resolve_comment(&repo_path, &id)).await?;
             serde_json::to_value(comment)?
         }
+        "rewrite_global_file" => {
+            let path = str_field("path")?;
+            let content = str_field("content")?;
+            blocking::run(move || {
+                ink_core::edit::write_foundation_file(
+                    &repo_path,
+                    &path,
+                    &content,
+                    "expand: foundational file",
+                )
+            })
+            .await?
+        }
         other => bail!("unknown tool: {other}"),
     };
 

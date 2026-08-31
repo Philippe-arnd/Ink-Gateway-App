@@ -21,12 +21,12 @@ use crate::agent::{load_provider, render_book_context, run_loop};
 use crate::auth::CurrentUser;
 use crate::blocking;
 use crate::error::{AppError, AppResult};
-use crate::llm::Turn;
+use crate::llm::{DEFAULT_TOOLS, Turn};
 use crate::state::AppState;
 
-const CURRENT_PATH: &str = "Review/current.md";
 const CORRECTION_TOOLS: &[&str] = &["rewrite_range", "add_comment"];
 const SELECTION_TOOLS: &[&str] = &["rewrite_range"];
+const EXPAND_FOUNDATIONS_TOOLS: &[&str] = &["rewrite_global_file"];
 
 #[derive(Debug, Deserialize)]
 pub struct StartSession {
@@ -61,7 +61,7 @@ fn build_session(
                  `insert_text`/`rewrite_range` for smaller additions.\n\n{context}"
             );
             let user = format!("Continue the story from where it currently stands.{steer}");
-            Ok((system, Turn::User(user), None))
+            Ok((system, Turn::User(user), Some(DEFAULT_TOOLS)))
         }
         "correct" => {
             let system = format!(
@@ -115,7 +115,29 @@ fn build_session(
                 "You are the AI co-author for this book, acting on a direct instruction from \
                  the author. Use the tools available to you to carry it out.\n\n{context}"
             );
-            Ok((system, Turn::User(instruction.to_string()), None))
+            Ok((
+                system,
+                Turn::User(instruction.to_string()),
+                Some(DEFAULT_TOOLS),
+            ))
+        }
+        "expand_foundations" => {
+            let system = format!(
+                "You are helping the author flesh out their book's foundational files, right \
+                 after their initial setup questionnaire. Soul.md, Characters.md, Outline.md, \
+                 Lore.md, and Chapter_01.md below currently hold only the author's short, \
+                 one-line answers, written down verbatim. Expand EACH of these 5 files into a \
+                 substantially richer, more detailed draft — several developed paragraphs per \
+                 file, not a rewrite of the premise, only an elaboration faithful to what the \
+                 author already said (don't invent contradictory facts). Call \
+                 `rewrite_global_file` once per file with that file's full new content. Cover \
+                 all 5 files before finishing.\n\n{context}"
+            );
+            let user = "Expand the current one-line answers in Soul.md, Characters.md, \
+                Outline.md, Lore.md, and Chapter_01.md into detailed, well-developed \
+                foundational documents."
+                .to_string();
+            Ok((system, Turn::User(user), Some(EXPAND_FOUNDATIONS_TOOLS)))
         }
         other => Err(AppError::bad_request(format!("unknown intent: {other}"))),
     }
@@ -159,9 +181,15 @@ pub async fn start(
 }
 
 #[derive(Debug, Serialize)]
-pub struct DiffResponse {
+pub struct FileDiff {
+    pub path: String,
     pub before: String,
     pub after: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DiffResponse {
+    pub files: Vec<FileDiff>,
 }
 
 pub async fn diff(
@@ -171,20 +199,37 @@ pub async fn diff(
 ) -> AppResult<Json<DiffResponse>> {
     let repo_path = load_owned_repo_path(&state, &user, &id).await?;
 
-    let before_repo = repo_path.clone();
-    let before_tag = tag.clone();
-    let before = blocking::run(move || {
-        ink_core::git::run_git(
-            &before_repo,
-            &["show", &format!("{before_tag}:{CURRENT_PATH}")],
-        )
-    })
-    .await?;
+    let paths = {
+        let (repo, tag) = (repo_path.clone(), tag.clone());
+        blocking::run(move || ink_core::git::changed_files(&repo, &tag)).await?
+    };
 
-    let after_path = repo_path.join("Review").join("current.md");
-    let after =
-        blocking::run(move || std::fs::read_to_string(&after_path).map_err(anyhow::Error::from))
-            .await?;
+    let mut files = Vec::with_capacity(paths.len());
+    for path in paths {
+        let before = {
+            let (repo, tag, path) = (repo_path.clone(), tag.clone(), path.clone());
+            blocking::run(move || {
+                match ink_core::git::run_git(&repo, &["show", &format!("{tag}:{path}")]) {
+                    Ok(content) => Ok(content),
+                    // Path didn't exist yet at the snapshot tag — no prior content to
+                    // show, rather than failing the whole diff over a brand-new file.
+                    Err(e) if e.to_string().contains("does not exist") => Ok(String::new()),
+                    Err(e) => Err(e),
+                }
+            })
+            .await?
+        };
+        let after = {
+            let full_path = repo_path.join(&path);
+            blocking::run(move || std::fs::read_to_string(&full_path).map_err(anyhow::Error::from))
+                .await?
+        };
+        files.push(FileDiff {
+            path,
+            before,
+            after,
+        });
+    }
 
-    Ok(Json(DiffResponse { before, after }))
+    Ok(Json(DiffResponse { files }))
 }

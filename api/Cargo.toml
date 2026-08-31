@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 # TODO: switch to `branch = "main"` once Ink-Gateway PR #15 merges.
-ink_core = { package = "ink-cli", git = "https://github.com/Philippe-arnd/Ink-Gateway", branch = "feat/onboarding-lib" }
+ink_core = { package = "ink-cli", git = "https://github.com/Philippe-arnd/Ink-Gateway", branch = "feat/expand-foundations-lib" }
 aes-gcm = "0.11.1"
 anyhow = "1.0.104"
 argon2 = "0.6.0"

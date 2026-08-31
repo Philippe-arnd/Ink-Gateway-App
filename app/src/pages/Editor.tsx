@@ -200,8 +200,10 @@ export function Editor() {
   }
 
   async function rejectSession() {
-    if (!id || !sessionTag) return;
-    await api.restoreVersion(id, sessionTag);
+    if (!id || !sessionTag || !sessionDiff) return;
+    for (const f of sessionDiff.files) {
+      await api.restoreVersion(id, sessionTag, f.path);
+    }
     setSessionPhase("idle");
     setSessionTag(null);
     setSessionDiff(null);
@@ -363,7 +365,13 @@ export function Editor() {
 
         {sessionPhase === "diff" && sessionDiff && (
           <div className="session-diff">
-            <DiffView before={sessionDiff.before} after={sessionDiff.after} />
+            {sessionDiff.files.length === 0 && <p className="muted">Aucun changement.</p>}
+            {sessionDiff.files.map((f) => (
+              <div key={f.path}>
+                {sessionDiff.files.length > 1 && <h4 className="diff-file-path">{f.path}</h4>}
+                <DiffView before={f.before} after={f.after} />
+              </div>
+            ))}
             <div className="diff-actions">
               <button className="reject" onClick={rejectSession}>
                 Rejeter

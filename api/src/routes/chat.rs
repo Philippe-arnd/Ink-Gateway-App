@@ -17,7 +17,7 @@ use crate::agent::{load_provider, render_book_context, run_loop};
 use crate::auth::CurrentUser;
 use crate::blocking;
 use crate::error::AppResult;
-use crate::llm::Turn;
+use crate::llm::{DEFAULT_TOOLS, Turn};
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -53,6 +53,12 @@ pub async fn chat(
     let system_prompt = build_system_prompt(&ctx);
     let history = vec![Turn::User(body.message)];
 
-    let stream = run_loop(provider, system_prompt, history, repo_path, None);
+    let stream = run_loop(
+        provider,
+        system_prompt,
+        history,
+        repo_path,
+        Some(DEFAULT_TOOLS),
+    );
     Ok(Sse::new(stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15))))
 }
