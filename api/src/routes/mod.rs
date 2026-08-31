@@ -44,44 +44,49 @@ fn auth_rate_limit() -> GovernorLayer<
 
 pub fn router() -> Router<AppState> {
     // Coolify's own container healthcheck probes GET / on the container
-    // directly (bypassing Traefik's /api path routing), so this needs to
-    // exist even though nothing external ever reaches it that way.
+    // directly (bypassing Traefik entirely), so this needs to exist even
+    // though nothing external ever reaches it that way.
     let health_route = Router::new().route("/", get(|| async { "ok" }));
 
+    // Unprefixed on purpose: Traefik's Domains-tab entry for this service is
+    // https://<domain>/api, which always generates a stripprefix — Axum only
+    // ever sees the path after /api is removed. The client (app/src/api.ts)
+    // prefixes every request with VITE_API_BASE, which already ends in /api,
+    // so the two line up. See DEPLOYMENT.md.
     let auth_routes = Router::new()
-        .route("/api/auth/register", post(auth::register))
-        .route("/api/auth/login", post(auth::login))
-        .route("/api/auth/forgot-password", post(auth::forgot_password))
-        .route("/api/auth/reset-password", post(auth::reset_password))
+        .route("/auth/register", post(auth::register))
+        .route("/auth/login", post(auth::login))
+        .route("/auth/forgot-password", post(auth::forgot_password))
+        .route("/auth/reset-password", post(auth::reset_password))
         .layer(auth_rate_limit());
 
     auth_routes
-        .route("/api/auth/logout", post(auth::logout))
-        .route("/api/auth/me", get(auth::me))
+        .route("/auth/logout", post(auth::logout))
+        .route("/auth/me", get(auth::me))
         .route(
-            "/api/settings/api-key",
+            "/settings/api-key",
             get(settings::get_api_key)
                 .post(settings::set_api_key)
                 .delete(settings::delete_api_key),
         )
-        .route("/api/books", get(books::list).post(books::create))
-        .route("/api/onboarding/questions", get(onboarding::questions))
-        .route("/api/onboarding/start", post(onboarding::start))
-        .route("/api/books/{id}", get(books::get))
-        .route("/api/books/{id}/edit/insert", post(edit::insert_text))
-        .route("/api/books/{id}/edit/rewrite", post(edit::rewrite_range))
+        .route("/books", get(books::list).post(books::create))
+        .route("/onboarding/questions", get(onboarding::questions))
+        .route("/onboarding/start", post(onboarding::start))
+        .route("/books/{id}", get(books::get))
+        .route("/books/{id}/edit/insert", post(edit::insert_text))
+        .route("/books/{id}/edit/rewrite", post(edit::rewrite_range))
         .route(
-            "/api/books/{id}/comments",
+            "/books/{id}/comments",
             get(comments::list).post(comments::add),
         )
         .route(
-            "/api/books/{id}/comments/{comment_id}/resolve",
+            "/books/{id}/comments/{comment_id}/resolve",
             post(comments::resolve),
         )
-        .route("/api/books/{id}/versions", get(versions::list))
-        .route("/api/books/{id}/versions/restore", post(versions::restore))
-        .route("/api/books/{id}/chat", post(chat::chat))
-        .route("/api/books/{id}/sessions", post(sessions::start))
-        .route("/api/books/{id}/sessions/{tag}/diff", get(sessions::diff))
+        .route("/books/{id}/versions", get(versions::list))
+        .route("/books/{id}/versions/restore", post(versions::restore))
+        .route("/books/{id}/chat", post(chat::chat))
+        .route("/books/{id}/sessions", post(sessions::start))
+        .route("/books/{id}/sessions/{tag}/diff", get(sessions::diff))
         .merge(health_route)
 }
