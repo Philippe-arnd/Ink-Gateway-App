@@ -91,68 +91,68 @@ export interface ApiKeyStatus {
 
 export const api = {
   register: (email: string, password: string, invite_code: string) =>
-    request<UserView>("/api/auth/register", {
+    request<UserView>("/auth/register", {
       method: "POST",
       body: JSON.stringify({ email, password, invite_code }),
     }),
   login: (email: string, password: string) =>
-    request<UserView>("/api/auth/login", {
+    request<UserView>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
-  logout: () => request("/api/auth/logout", { method: "POST" }),
-  me: () => request<UserView>("/api/auth/me"),
+  logout: () => request("/auth/logout", { method: "POST" }),
+  me: () => request<UserView>("/auth/me"),
   forgotPassword: (email: string) =>
-    request("/api/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
+    request("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
   resetPassword: (token: string, new_password: string) =>
-    request("/api/auth/reset-password", {
+    request("/auth/reset-password", {
       method: "POST",
       body: JSON.stringify({ token, new_password }),
     }),
 
-  listBooks: () => request<Book[]>("/api/books"),
+  listBooks: () => request<Book[]>("/books"),
   createBook: (title: string, slug: string) =>
-    request<Book>("/api/books", { method: "POST", body: JSON.stringify({ title, slug }) }),
-  getBook: (id: string) => request<BookContext>(`/api/books/${id}`),
+    request<Book>("/books", { method: "POST", body: JSON.stringify({ title, slug }) }),
+  getBook: (id: string) => request<BookContext>(`/books/${id}`),
 
   insertText: (id: string, position: number, content: string) =>
-    request(`/api/books/${id}/edit/insert`, {
+    request(`/books/${id}/edit/insert`, {
       method: "POST",
       body: JSON.stringify({ position, content }),
     }),
   rewriteRange: (id: string, start: number, end: number, content: string) =>
-    request(`/api/books/${id}/edit/rewrite`, {
+    request(`/books/${id}/edit/rewrite`, {
       method: "POST",
       body: JSON.stringify({ start, end, content }),
     }),
 
-  listComments: (id: string) => request<Comment[]>(`/api/books/${id}/comments`),
+  listComments: (id: string) => request<Comment[]>(`/books/${id}/comments`),
   addComment: (id: string, anchor_start: number, anchor_end: number, text: string) =>
-    request<Comment>(`/api/books/${id}/comments`, {
+    request<Comment>(`/books/${id}/comments`, {
       method: "POST",
       body: JSON.stringify({ anchor_start, anchor_end, text }),
     }),
   resolveComment: (id: string, commentId: string) =>
-    request<Comment>(`/api/books/${id}/comments/${commentId}/resolve`, { method: "POST" }),
+    request<Comment>(`/books/${id}/comments/${commentId}/resolve`, { method: "POST" }),
 
   listVersions: (id: string, path = "Review/current.md") =>
-    request<VersionEntry[]>(`/api/books/${id}/versions?path=${encodeURIComponent(path)}`),
+    request<VersionEntry[]>(`/books/${id}/versions?path=${encodeURIComponent(path)}`),
   restoreVersion: (id: string, commit: string, path = "Review/current.md") =>
-    request(`/api/books/${id}/versions/restore`, {
+    request(`/books/${id}/versions/restore`, {
       method: "POST",
       body: JSON.stringify({ path, commit }),
     }),
 
-  getApiKey: () => request<ApiKeyStatus>("/api/settings/api-key"),
+  getApiKey: () => request<ApiKeyStatus>("/settings/api-key"),
   setApiKey: (provider: string, api_key: string, key_type: "api_key" | "oauth_token" = "api_key") =>
-    request<ApiKeyStatus>("/api/settings/api-key", {
+    request<ApiKeyStatus>("/settings/api-key", {
       method: "POST",
       body: JSON.stringify({ provider, api_key, key_type }),
     }),
-  deleteApiKey: () => request("/api/settings/api-key", { method: "DELETE" }),
+  deleteApiKey: () => request("/settings/api-key", { method: "DELETE" }),
 
   getSessionDiff: (bookId: string, tag: string) =>
-    request<SessionDiff>(`/api/books/${bookId}/sessions/${encodeURIComponent(tag)}/diff`),
+    request<SessionDiff>(`/books/${bookId}/sessions/${encodeURIComponent(tag)}/diff`),
 };
 
 interface RawSseEvent {
@@ -205,7 +205,7 @@ export type ChatEvent =
   | { type: "done" };
 
 export async function* streamChat(bookId: string, message: string): AsyncGenerator<ChatEvent> {
-  for await (const { event, data } of streamSse(`/api/books/${bookId}/chat`, { message })) {
+  for await (const { event, data } of streamSse(`/books/${bookId}/chat`, { message })) {
     if (event === "text") yield { type: "text", data };
     else if (event === "tool_call") yield { type: "tool_call", data: JSON.parse(data) };
     else if (event === "tool_result") yield { type: "tool_result", data: JSON.parse(data) };
@@ -234,7 +234,7 @@ export async function* streamSession(
   bookId: string,
   body: StartSessionBody,
 ): AsyncGenerator<SessionEvent> {
-  for await (const { event, data } of streamSse(`/api/books/${bookId}/sessions`, body)) {
+  for await (const { event, data } of streamSse(`/books/${bookId}/sessions`, body)) {
     if (event === "text") yield { type: "text", data };
     else if (event === "tool_call") yield { type: "tool_call", data: JSON.parse(data) };
     else if (event === "tool_result") yield { type: "tool_result", data: JSON.parse(data) };

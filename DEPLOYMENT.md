@@ -63,9 +63,11 @@ except a third service competing for the same domain.
     hard way.
   - **And an entry carrying a path always generates a `stripprefix`.** So the
     `api` entry must be `https://<domain>/api`, and the strip is unavoidable:
-    Axum receives `/auth/login`, not `/api/auth/login`. The SPA compensates by
-    sending `/api/api/...` — see `API_PUBLIC_URL` below. It is not possible to
-    keep `/api` routed *and* turn the strip off.
+    Axum receives `/auth/login`, not `/api/auth/login` — which is exactly what
+    its own routes declare (`api/src/routes/mod.rs` is unprefixed on purpose).
+    It is not possible to keep `/api` routed *and* turn the strip off, so
+    `API_PUBLIC_URL` below must keep the `/api` suffix even though the api's
+    routes don't have it.
   - Priorities are explicit and deliberately large: Traefik derives an unset
     priority from the rule string's *length*, so a small explicit number
     loses to a longer auto-generated rule.
@@ -104,7 +106,7 @@ Both frontends are compiled into the `web` image, so all of these are
 
 | Variable | Required | Notes |
 |---|---|---|
-| `API_PUBLIC_URL` | **yes** | `https://yourdomain.com/api` — **with** the path, even though `app/src/api.ts` prefixes every path with `/api` too. The browser therefore sends `/api/api/...` and Coolify's `stripprefix` removes exactly one, leaving the `/api/...` the routes declare. Removing this `/api` on its own takes production down; it can only go away together with the `/api` prefix on the api's own routes. Baked into the SPA build (Vite env vars are compile-time). |
+| `API_PUBLIC_URL` | **yes** | `https://yourdomain.com/api` — **with** the path, even though `api/src/routes/mod.rs` declares its routes unprefixed. Coolify's `stripprefix` removes the `/api` before Axum ever sees the request, so this value must keep it. Baked into the SPA build (Vite env vars are compile-time). |
 | `FRONTEND_ORIGIN` | **yes** (on `api`) | The public origin serving the SPA — since `web`/`api` share one domain, this is just that domain (e.g. `https://yourdomain.com`, no path, no trailing slash). Used for CORS `allow_origin` and the link inside password-reset emails. |
 | `APP_PUBLIC_URL` | recommended | The public URL of the SPA (e.g. `https://yourdomain.com/app`), baked into the Astro build so its Sign in/up links point at the right place. |
 | `VITE_BASE_PATH` (on `web/Dockerfile`, not compose) | no | Where the SPA is served from; defaults to `/app/`. Moving it means updating three things in step: this arg, the `COPY --from=app` destination in `web/Dockerfile`, and the `location /app/` block in `web/nginx.conf`. |
