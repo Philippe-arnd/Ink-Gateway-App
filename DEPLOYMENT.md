@@ -43,10 +43,17 @@ for whoever runs it (Coolify or otherwise), not a record of an actual run.
   `X-Forwarded-For`/`Forwarded` to identify clients (`SmartIpKeyExtractor`),
   and a client that can reach the API directly could forge that header to
   dodge the limit entirely.
-- One domain, with all three services assigned to it under their path
-  prefix. On Coolify this is set per-service in the application's Domains
-  tab (each service gets the same host, with `/app` and `/api` as the
-  path) — the compose file itself doesn't pin these.
+- One domain, with `app`/`api` routed to their path prefix via **explicit
+  Traefik labels in `docker-compose.yml`** (`ink-gateway-app`/`ink-gateway-api`
+  routers, `priority=100`), not Coolify's per-service Domains tab alone —
+  relying only on the Domains tab for a multi-service docker-compose app
+  doesn't reliably disambiguate `/app`/`/api` from the bare domain (see
+  [Ink-Gateway-App#34](https://github.com/Philippe-arnd/Ink-Gateway-App/issues/34)):
+  every path fell through to whichever service owned the bare `Host()`
+  rule (`landing`). If you deploy to a domain other than
+  `ink-gateway.philapps.com`, set the `DOMAIN` env var (build/runtime
+  variable in Coolify) so the labels match — `landing` still just needs
+  its own Domain set normally in Coolify's UI, that router is unaffected.
 - A [Resend](https://resend.com) account + a verified sending domain, for
   password-reset emails.
 - An Anthropic and/or Gemini API key is **not** an operator secret — each
