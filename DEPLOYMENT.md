@@ -55,6 +55,11 @@ except a third service competing for the same domain.
   Keep a domain assigned in the tab anyway (Coolify issues the TLS cert from
   it), but the routing comes from the labels. If you deploy elsewhere, set
   the `DOMAIN` env var so both rules match.
+  - **The `api` service's Domains entry must carry no path.** A path there
+    makes Coolify generate a `stripprefix` middleware, and its router beats a
+    hand-written label — the API then receives `/auth/login` instead of
+    `/api/auth/login` and every route 404s while the container looks healthy.
+    Assign the domain to `web` only; `api` is reached through its label.
   - Priorities are explicit and deliberately large: Traefik derives an unset
     priority from the rule string's *length*, so a small explicit number
     loses to a longer auto-generated rule.
@@ -93,7 +98,7 @@ Both frontends are compiled into the `web` image, so all of these are
 
 | Variable | Required | Notes |
 |---|---|---|
-| `API_PUBLIC_URL` | **yes** | The public URL of the `api` service (e.g. `https://yourdomain.com/api`), baked into the SPA build (Vite env vars are compile-time). |
+| `API_PUBLIC_URL` | **yes** | The API's **origin**, with no path — e.g. `https://yourdomain.com`, *not* `https://yourdomain.com/api`. `app/src/api.ts` composes `${BASE}${path}` where every path already starts with `/api`, so a `/api` here produces `/api/api/...`. Baked into the SPA build (Vite env vars are compile-time). |
 | `FRONTEND_ORIGIN` | **yes** (on `api`) | The public origin serving the SPA — since `web`/`api` share one domain, this is just that domain (e.g. `https://yourdomain.com`, no path, no trailing slash). Used for CORS `allow_origin` and the link inside password-reset emails. |
 | `APP_PUBLIC_URL` | recommended | The public URL of the SPA (e.g. `https://yourdomain.com/app`), baked into the Astro build so its Sign in/up links point at the right place. |
 | `VITE_BASE_PATH` (on `web/Dockerfile`, not compose) | no | Where the SPA is served from; defaults to `/app/`. Moving it means updating three things in step: this arg, the `COPY --from=app` destination in `web/Dockerfile`, and the `location /app/` block in `web/nginx.conf`. |
