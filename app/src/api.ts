@@ -228,7 +228,7 @@ export async function* streamChat(bookId: string, message: string): AsyncGenerat
   }
 }
 
-export type SessionIntent = "continue" | "correct" | "rewrite_selection" | "free";
+export type SessionIntent = "continue" | "correct" | "rewrite_selection" | "free" | "expand_foundations";
 
 export interface StartSessionBody {
   intent: SessionIntent;
@@ -257,7 +257,12 @@ export async function* streamSession(
   }
 }
 
-export interface SessionDiff {
+export interface FileDiff {
+  path: string;
   before: string;
   after: string;
+}
+
+export interface SessionDiff {
+  files: FileDiff[];
 }

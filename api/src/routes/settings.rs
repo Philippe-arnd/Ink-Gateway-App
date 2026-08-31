@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::auth::CurrentUser;
 use crate::error::{AppError, AppResult};
+use crate::llm::anthropic::{self, AuthMode};
+use crate::llm::gemini;
 use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
@@ -83,6 +85,26 @@ pub async fn set_api_key(
         return Err(AppError::bad_request(
             "that doesn't look like a real credential",
         ));
+    }
+
+    let trimmed = body.api_key.trim();
+    match body.provider.as_str() {
+        "anthropic" => {
+            let auth_mode = if body.key_type == "oauth_token" {
+                AuthMode::OAuthToken
+            } else {
+                AuthMode::ApiKey
+            };
+            anthropic::validate_credential(trimmed, auth_mode)
+                .await
+                .map_err(|e| AppError::bad_request(e.to_string()))?;
+        }
+        "gemini" => {
+            gemini::validate_api_key(trimmed)
+                .await
+                .map_err(|e| AppError::bad_request(e.to_string()))?;
+        }
+        _ => unreachable!("provider already validated above"),
     }
 
     let encrypted = state.cipher.encrypt(body.api_key.trim())?;

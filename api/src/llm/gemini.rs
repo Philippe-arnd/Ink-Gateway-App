@@ -24,6 +24,37 @@ impl GeminiProvider {
     }
 }
 
+/// Cheap credential check — `GET /v1beta/models` is a free metadata call, no
+/// `generateContent` token spend, so a bad key is caught at save time.
+pub async fn validate_api_key(api_key: &str) -> Result<()> {
+    let config = Agent::config_builder().http_status_as_error(false).build();
+    let agent = Agent::new_with_config(config);
+    let api_key = api_key.to_string();
+
+    tokio::task::spawn_blocking(move || -> Result<()> {
+        let url = format!("https://generativelanguage.googleapis.com/v1beta/models?key={api_key}");
+        let mut resp = agent
+            .get(&url)
+            .call()
+            .context("failed to reach the Gemini API")?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let payload: Value = resp.body_mut().read_json().unwrap_or_default();
+            let message = payload
+                .get("error")
+                .and_then(|e| e.get("message"))
+                .and_then(|m| m.as_str())
+                .unwrap_or("unknown error");
+            bail!("Gemini API error ({status}): {message}");
+        }
+
+        Ok(())
+    })
+    .await
+    .context("blocking task panicked")?
+}
+
 fn to_contents(history: &[Turn]) -> Vec<Value> {
     let mut contents: Vec<(&'static str, Value)> = Vec::new();
     for turn in history {

@@ -66,6 +66,20 @@ pub trait LlmProvider: Send + Sync {
     ) -> Result<Vec<TurnEvent>>;
 }
 
+/// The tools every ordinary session/chat turn should see — everything
+/// `all_tool_specs()` defines except `rewrite_global_file`, which is scoped
+/// to the `expand_foundations` session only. Callers that used to pass
+/// `None` (meaning "no restriction") must pass `Some(DEFAULT_TOOLS)` instead
+/// now that a second, more privileged tool exists — otherwise `None` would
+/// silently grant every session write access to `Global Material/*`.
+pub const DEFAULT_TOOLS: &[&str] = &[
+    "replace_current",
+    "insert_text",
+    "rewrite_range",
+    "add_comment",
+    "resolve_comment",
+];
+
 /// Tools mapped 1:1 onto `ink_core::edit` / `ink_core::comments` — the same
 /// primitives the browser editor itself calls, so AI edits and human edits
 /// go through the identical git-committed code path.
@@ -138,6 +152,30 @@ fn all_tool_specs() -> Vec<ToolSpec> {
                 "type": "object",
                 "properties": { "id": { "type": "string" } },
                 "required": ["id"]
+            }),
+        },
+        ToolSpec {
+            name: "rewrite_global_file",
+            description: "Replace the ENTIRE content of one of the book's foundational files \
+                with a new, more detailed version. Always send the full new content, never a \
+                partial edit — call this once per file you're expanding.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "enum": [
+                            "Global Material/Soul.md",
+                            "Global Material/Characters.md",
+                            "Global Material/Outline.md",
+                            "Global Material/Lore.md",
+                            "Chapters material/Chapter_01.md"
+                        ],
+                        "description": "Which foundational file to rewrite."
+                    },
+                    "content": { "type": "string", "description": "The full new content for that file." }
+                },
+                "required": ["path", "content"]
             }),
         },
     ]

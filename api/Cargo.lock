@@ -1341,7 +1341,7 @@ dependencies = [
 [[package]]
 name = "ink-cli"
 version = "2026.3.30-1"
-source = "git+https://github.com/Philippe-arnd/Ink-Gateway?branch=feat%2Fonboarding-lib#9d46ce233d11c3d86df4e8bcf393aafaac0f639b"
+source = "git+https://github.com/Philippe-arnd/Ink-Gateway?branch=feat%2Fexpand-foundations-lib#5442a8cebd318d8e936f94810b7d6d8765ce2091"
 dependencies = [
  "anyhow",
  "chrono",

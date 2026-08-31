@@ -1,9 +1,21 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, ApiError, type ApiKeyStatus, type OnboardingQuestion } from "../api";
+import {
+  api,
+  streamSession,
+  ApiError,
+  type ApiKeyStatus,
+  type Book,
+  type OnboardingQuestion,
+  type SessionDiff,
+} from "../api";
 import { ApiKeyForm } from "../components/ApiKeyForm";
+import { DiffView } from "../components/DiffView";
 
-type Step = "credential" | "book-info" | "questions" | "submitting";
+type Step = "credential" | "book-info" | "questions" | "submitting" | "offer-expand" | "expanding" | "expand-diff";
+
+type LogLine =
+  | { kind: "assistant" | "tool_call" | "tool_result" | "tool_error"; text: string };
 
 // Mirrors ink-cli's own section grouping (`init.rs`'s `sections` array) —
 // question index where each section starts, paired with its label.
@@ -48,6 +60,12 @@ export function Onboarding() {
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
 
+  const [book, setBook] = useState<Book | null>(null);
+  const [expandLog, setExpandLog] = useState<LogLine[]>([]);
+  const [expandTag, setExpandTag] = useState<string | null>(null);
+  const [expandDiff, setExpandDiff] = useState<SessionDiff | null>(null);
+  const [expandError, setExpandError] = useState<string | null>(null);
+
   useEffect(() => {
     api.getApiKey().then((s: ApiKeyStatus) => {
       if (s.configured) setStep("book-info");
@@ -67,12 +85,66 @@ export function Onboarding() {
     setStep("submitting");
     const answerPairs: [number, string][] = Object.entries(answers).map(([i, a]) => [Number(i), a]);
     try {
-      const book = await api.startOnboarding(title, author, slug, answerPairs);
-      navigate(`/books/${book.id}`);
+      const created = await api.startOnboarding(title, author, slug, answerPairs);
+      setBook(created);
+      setStep("offer-expand");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong");
       setStep("book-info");
     }
+  }
+
+  async function launchExpand() {
+    if (!book) return;
+    setStep("expanding");
+    setExpandLog([]);
+    setExpandError(null);
+
+    let tag: string | null = null;
+    try {
+      for await (const event of streamSession(book.id, { intent: "expand_foundations" })) {
+        if (event.type === "text") {
+          setExpandLog((l) => [...l, { kind: "assistant", text: event.data }]);
+        } else if (event.type === "tool_call") {
+          setExpandLog((l) => [
+            ...l,
+            { kind: "tool_call", text: `${event.data.name}(${JSON.stringify(event.data.input)})` },
+          ]);
+        } else if (event.type === "tool_result") {
+          setExpandLog((l) => [...l, { kind: "tool_result", text: event.data.name }]);
+        } else if (event.type === "error") {
+          setExpandLog((l) => [...l, { kind: "tool_error", text: event.data }]);
+        } else if (event.type === "session_done") {
+          tag = event.data.tag;
+        }
+      }
+    } catch (err) {
+      setExpandLog((l) => [
+        ...l,
+        { kind: "tool_error", text: err instanceof Error ? err.message : "Erreur inconnue" },
+      ]);
+    }
+
+    if (!tag) {
+      setExpandError("La session s'est arrêtée avant la fin.");
+      return;
+    }
+    setExpandTag(tag);
+    const diff = await api.getSessionDiff(book.id, tag);
+    setExpandDiff(diff);
+    setStep("expand-diff");
+  }
+
+  function acceptExpand() {
+    if (book) navigate(`/books/${book.id}`);
+  }
+
+  async function rejectExpand() {
+    if (!book || !expandTag || !expandDiff) return;
+    for (const f of expandDiff.files) {
+      await api.restoreVersion(book.id, expandTag, f.path);
+    }
+    navigate(`/books/${book.id}`);
   }
 
   return (
@@ -220,6 +292,70 @@ export function Onboarding() {
         )}
 
         {step === "submitting" && <p>Création de ton livre…</p>}
+
+        {step === "offer-expand" && (
+          <>
+            <h2>Développer les fondations</h2>
+            <p className="muted">
+              L'IA peut développer tes réponses en documents détaillés (Soul, Personnages,
+              Intrigue, Univers, Chapitre 1) — tu valides le résultat avant qu'il ne reste.
+            </p>
+            <div className="onboarding-nav">
+              <button type="button" className="link" onClick={acceptExpand}>
+                Passer, j'irai directement à mon livre
+              </button>
+              <button type="button" onClick={launchExpand}>
+                Lancer la session
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === "expanding" && (
+          <>
+            <h2>L'IA développe tes fondations…</h2>
+            <div className="onboarding-log">
+              {expandLog.map((line, i) => (
+                <div key={i} className={`chat-line ${line.kind}`}>
+                  {line.text}
+                </div>
+              ))}
+            </div>
+            {expandError && (
+              <>
+                <p className="error">{expandError}</p>
+                <div className="onboarding-nav">
+                  <button type="button" className="link" onClick={acceptExpand}>
+                    Passer
+                  </button>
+                  <button type="button" onClick={launchExpand}>
+                    Réessayer
+                  </button>
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {step === "expand-diff" && expandDiff && (
+          <>
+            <h2>Relire les changements</h2>
+            {expandDiff.files.map((f) => (
+              <div key={f.path}>
+                <h4 className="diff-file-path">{f.path}</h4>
+                <DiffView before={f.before} after={f.after} />
+              </div>
+            ))}
+            <div className="onboarding-nav">
+              <button type="button" className="link" onClick={rejectExpand}>
+                Rejeter
+              </button>
+              <button type="button" onClick={acceptExpand}>
+                Accepter et continuer
+              </button>
+            </div>
+          </>
+        )}
       </section>
     </div>
   );

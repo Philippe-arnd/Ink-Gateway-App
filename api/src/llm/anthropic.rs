@@ -40,6 +40,46 @@ impl AnthropicProvider {
     }
 }
 
+/// Cheap credential check — `GET /v1/models` costs no tokens and accepts the
+/// same two auth-header shapes as a real turn, so a bad key/token is caught
+/// at save time instead of silently at first real use.
+pub async fn validate_credential(credential: &str, auth_mode: AuthMode) -> Result<()> {
+    let config = Agent::config_builder().http_status_as_error(false).build();
+    let agent = Agent::new_with_config(config);
+    let credential = credential.to_string();
+
+    tokio::task::spawn_blocking(move || -> Result<()> {
+        let mut request = agent
+            .get("https://api.anthropic.com/v1/models")
+            .header("anthropic-version", "2023-06-01");
+        request = match auth_mode {
+            AuthMode::ApiKey => request.header("x-api-key", &credential),
+            AuthMode::OAuthToken => request
+                .header("authorization", &format!("Bearer {credential}"))
+                .header("anthropic-beta", "oauth-2025-04-20"),
+        };
+
+        let mut resp = request
+            .call()
+            .context("failed to reach the Anthropic API")?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let payload: Value = resp.body_mut().read_json().unwrap_or_default();
+            let message = payload
+                .get("error")
+                .and_then(|e| e.get("message"))
+                .and_then(|m| m.as_str())
+                .unwrap_or("unknown error");
+            bail!("Anthropic API error ({status}): {message}");
+        }
+
+        Ok(())
+    })
+    .await
+    .context("blocking task panicked")?
+}
+
 /// Anthropic requires strict user/assistant alternation with tool_use in an
 /// assistant message and the matching tool_result in the following user
 /// message — merge consecutive same-role turns into one message.
