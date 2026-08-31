@@ -18,6 +18,43 @@ services:
       - data:/data
     expose:
       - "8787"
+    # TEMPORARY — diagnostic only, revert once #34's crash-loop is identified.
+    # The api exits within seconds of every deploy and Coolify tears the whole
+    # compose project down once the restart count hits its cap, taking `web`
+    # with it and destroying the container before anyone can read its stderr.
+    # Neither the Coolify API nor its UI can produce a stopped container's log,
+    # so the only way to see why it dies is to stop it from dying: run the
+    # binary, print its exit code, then hold the container open so the log
+    # stays readable. The echoes below report presence/length only, never a
+    # secret's value.
+    command:
+      - sh
+      - -c
+      - |
+        echo "--- ink-gateway-api startup diagnostics ---"
+        echo "INK_GATEWAY_MASTER_KEY  present=$${INK_GATEWAY_MASTER_KEY:+yes} len=$${#INK_GATEWAY_MASTER_KEY}"
+        echo "INK_GATEWAY_INVITE_CODE present=$${INK_GATEWAY_INVITE_CODE:+yes}"
+        echo "RESEND_API_KEY          present=$${RESEND_API_KEY:+yes}"
+        echo "RESEND_FROM_EMAIL       present=$${RESEND_FROM_EMAIL:+yes}"
+        echo "DATABASE_URL=$${DATABASE_URL}"
+        echo "INK_GATEWAY_BOOKS_DIR=$${INK_GATEWAY_BOOKS_DIR}"
+        echo "--- /data ---"
+        ls -la /data 2>&1 || echo "cannot list /data"
+        echo "--- running binary ---"
+        ink-gateway-api
+        echo "=== ink-gateway-api exited with code $$? — holding container open 1h for log capture ==="
+        sleep 3600
+    # TEMPORARY, paired with the command override above. While the binary is
+    # held open but not serving, anything probing 8787 would report unhealthy
+    # and invite Coolify to restart the container — which is the very loop
+    # we're trying to break. Always-true for the duration of the capture; the
+    # real check (GET / on 8787) lands with the fix.
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
     # Coolify's per-service Domain field alone doesn't reliably disambiguate
     # paths on one shared domain for a docker-compose app (see
     # Ink-Gateway-App#34) — explicit labels + priority instead of relying on
@@ -47,6 +84,22 @@ services:
     restart: unless-stopped
     expose:
       - "80"
+    # Coolify reads healthchecks from THIS file, not from the image metadata —
+    # `custom_healthcheck_found` stayed false through #35 and #36 even though
+    # both added a HEALTHCHECK to the Dockerfiles, which is why they changed
+    # nothing. With no healthcheck it can find, Coolify falls back to probing
+    # the application-level `ports_exposes` (still "3000", a port no service
+    # here listens on), marks the container unhealthy and restarts it — until
+    # the restart cap tears the whole project down. That's the only
+    # explanation for `web` going down too: a static nginx doesn't crash.
+    # This block overrides the image's own HEALTHCHECK at runtime; the
+    # Dockerfile keeps its copy so `docker ps` stays informative standalone.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost/"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 5
 
 volumes:
   data:
