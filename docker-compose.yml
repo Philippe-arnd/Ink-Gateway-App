@@ -18,6 +18,32 @@ services:
       - data:/data
     expose:
       - "8787"
+    # TEMPORARY — diagnostic only, revert once #34's crash-loop is identified.
+    # The api exits within seconds of every deploy and Coolify tears the whole
+    # compose project down once the restart count hits its cap, taking `web`
+    # with it and destroying the container before anyone can read its stderr.
+    # Neither the Coolify API nor its UI can produce a stopped container's log,
+    # so the only way to see why it dies is to stop it from dying: run the
+    # binary, print its exit code, then hold the container open so the log
+    # stays readable. The echoes below report presence/length only, never a
+    # secret's value.
+    command:
+      - sh
+      - -c
+      - |
+        echo "--- ink-gateway-api startup diagnostics ---"
+        echo "INK_GATEWAY_MASTER_KEY  present=$${INK_GATEWAY_MASTER_KEY:+yes} len=$${#INK_GATEWAY_MASTER_KEY}"
+        echo "INK_GATEWAY_INVITE_CODE present=$${INK_GATEWAY_INVITE_CODE:+yes}"
+        echo "RESEND_API_KEY          present=$${RESEND_API_KEY:+yes}"
+        echo "RESEND_FROM_EMAIL       present=$${RESEND_FROM_EMAIL:+yes}"
+        echo "DATABASE_URL=$${DATABASE_URL}"
+        echo "INK_GATEWAY_BOOKS_DIR=$${INK_GATEWAY_BOOKS_DIR}"
+        echo "--- /data ---"
+        ls -la /data 2>&1 || echo "cannot list /data"
+        echo "--- running binary ---"
+        ink-gateway-api
+        echo "=== ink-gateway-api exited with code $$? — holding container open 1h for log capture ==="
+        sleep 3600
     # Coolify's per-service Domain field alone doesn't reliably disambiguate
     # paths on one shared domain for a docker-compose app (see
     # Ink-Gateway-App#34) — explicit labels + priority instead of relying on
