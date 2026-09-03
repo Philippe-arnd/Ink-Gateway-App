@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: docker build -f web/Dockerfile -t ink-gateway-web .
       # The SPA is served from a real /app/ subdirectory, not an nginx alias —
       # assert both entry points exist so a wrong COPY destination fails here
@@ -51,7 +51,7 @@ jobs:
       run:
         working-directory: api
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
