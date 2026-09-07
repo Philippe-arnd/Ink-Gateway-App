@@ -9,7 +9,7 @@
 # still Vite) — only the build artifacts merge. Build context is the repo root,
 # hence the `landing/`- and `app/`-prefixed COPY paths; see `.dockerignore`.
 
-FROM node:22-bookworm-slim AS landing
+FROM node:24-bookworm-slim AS landing
 WORKDIR /build
 COPY landing/package.json landing/package-lock.json ./
 RUN npm ci
@@ -18,7 +18,7 @@ ARG PUBLIC_APP_URL=https://ink-gateway.philapps.com/app
 ENV PUBLIC_APP_URL=$PUBLIC_APP_URL
 RUN npm run build
 
-FROM node:22-bookworm-slim AS app
+FROM node:24-bookworm-slim AS app
 WORKDIR /build
 COPY app/package.json app/package-lock.json ./
 RUN npm ci
