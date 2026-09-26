@@ -34,6 +34,8 @@ ENV VITE_BASE_PATH=$VITE_BASE_PATH
 RUN npm run build
 
 FROM nginx:1-alpine
+# Pull Alpine security fixes (e.g. openssl) published after the base image.
+RUN apk upgrade --no-cache
 # The SPA lands in a real `app/` subdirectory rather than being aliased there,
 # so the URL path and the filesystem path line up — see nginx.conf.
 COPY --from=landing /build/dist /usr/share/nginx/html

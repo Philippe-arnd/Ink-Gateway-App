@@ -5,7 +5,10 @@ COPY src ./src
 RUN cargo build --release
 
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Pull Debian security fixes published after the base image was built;
+# otherwise OS packages only move when the upstream tag is rebuilt.
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
     ca-certificates git curl \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=build /build/target/release/ink-gateway-api /usr/local/bin/ink-gateway-api
