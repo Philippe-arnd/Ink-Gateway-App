@@ -1,0 +1,36 @@
+name: Auto Merge
+
+on:
+  workflow_run:
+    workflows:
+      - 'CI'
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  issues: write
+
+concurrency:
+  group: auto-merge-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  auto-merge:
+    name: Auto Merge
+    # Single CI workflow here, so this must also run on failure — otherwise a
+    # failing Renovate PR would never get an issue filed (check-status re-derives
+    # real state from the checks API regardless of which event triggered this run).
+    if: github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure'
+    uses: Philippe-arnd/reusable-workflow-vibecoded/.github/workflows/reusable-auto-merge.yml@main
+    with:
+      required-checks: |
+        CI / web
+        CI / api
+      merge-method: 'squash'
+      base-branch: 'main'
+      block-label: 'major-update'
+      file-issue-on-failure: true
+      triggering-conclusion: ${{ github.event.workflow_run.conclusion }}
+      triggering-branch: ${{ github.event.workflow_run.head_branch }}
