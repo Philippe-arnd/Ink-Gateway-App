@@ -1,24 +1,90 @@
 const BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8790";
 
+/// Mirrors `api/src/error.rs`'s `code` module. Branch on these, never on the
+/// human-readable message.
+export type ErrorCode =
+  | "unauthenticated"
+  | "not_found"
+  | "validation"
+  | "no_provider_key"
+  | "provider_auth"
+  | "draft_conflict"
+  | "chapter_not_ready"
+  | "needs_chapter_outline"
+  | "rate_limited"
+  | "limit_reached"
+  | "internal"
+  | "network";
+
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  code: ErrorCode;
+  details?: unknown;
+
+  constructor(status: number, message: string, code: ErrorCode = "internal", details?: unknown) {
     super(message);
+    this.name = "ApiError";
     this.status = status;
+    this.code = code;
+    this.details = details;
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    credentials: "include",
-    headers: { "content-type": "application/json" },
-    ...init,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new ApiError(res.status, body.error ?? res.statusText);
+/**
+ * Set by the app shell. Any 401 means the server-side session is gone — which
+ * happens on every deploy, because sessions live in an in-memory store — so
+ * this has to be handled centrally rather than per page.
+ */
+let onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  onUnauthorized = handler;
+}
+
+function parseErrorBody(body: unknown, fallback: string): { message: string; code: ErrorCode; details?: unknown } {
+  if (body && typeof body === "object") {
+    const b = body as Record<string, unknown>;
+    return {
+      message: typeof b.error === "string" ? b.error : fallback,
+      code: (typeof b.code === "string" ? b.code : "internal") as ErrorCode,
+      details: b.details,
+    };
   }
-  return res.json() as Promise<T>;
+  return { message: fallback, code: "internal" };
+}
+
+async function toApiError(res: Response): Promise<ApiError> {
+  const body = await res.json().catch(() => null);
+  const { message, code, details } = parseErrorBody(body, res.statusText || `HTTP ${res.status}`);
+  if (res.status === 401) onUnauthorized?.();
+  return new ApiError(res.status, message, res.status === 401 ? "unauthenticated" : code, details);
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  let res: Response;
+  try {
+    // `init` is spread first so an explicit `headers` can be merged rather
+    // than silently replacing content-type.
+    res = await fetch(`${BASE}${path}`, {
+      ...init,
+      credentials: "include",
+      headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    throw new ApiError(0, "Connexion au serveur impossible.", "network");
+  }
+
+  if (!res.ok) throw await toApiError(res);
+
+  // Several endpoints (logout, delete key, restore) answer 204 or an empty
+  // body; calling res.json() on those threw a SyntaxError that escaped every
+  // `instanceof ApiError` branch in the UI.
+  if (res.status === 204) return undefined as T;
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("json")) return undefined as T;
+  const text = await res.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
 }
 
 export interface UserView {
@@ -80,6 +146,11 @@ export interface VersionEntry {
   commit: string;
   date: string;
   message: string;
+}
+
+export interface VersionPage {
+  versions: VersionEntry[];
+  next_cursor: number | null;
 }
 
 export interface ApiKeyStatus {
@@ -148,8 +219,12 @@ export const api = {
   resolveComment: (id: string, commentId: string) =>
     request<Comment>(`/books/${id}/comments/${commentId}/resolve`, { method: "POST" }),
 
-  listVersions: (id: string, path = "Review/current.md") =>
-    request<VersionEntry[]>(`/books/${id}/versions?path=${encodeURIComponent(path)}`),
+  listVersions: (id: string, path = "Review/current.md", limit?: number, cursor?: number) => {
+    const params = new URLSearchParams({ path });
+    if (limit !== undefined) params.set("limit", String(limit));
+    if (cursor !== undefined) params.set("cursor", String(cursor));
+    return request<VersionPage>(`/books/${id}/versions?${params}`);
+  },
   restoreVersion: (id: string, commit: string, path = "Review/current.md") =>
     request(`/books/${id}/versions/restore`, {
       method: "POST",
@@ -175,45 +250,105 @@ export const api = {
     }),
 };
 
-interface RawSseEvent {
+export interface RawSseEvent {
   event: string;
   data: string;
 }
 
-async function* streamSse(path: string, body: unknown): AsyncGenerator<RawSseEvent> {
-  const res = await fetch(`${BASE}${path}`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok || !res.body) {
-    const errBody = await res.json().catch(() => ({ error: res.statusText }));
-    throw new ApiError(res.status, errBody.error ?? res.statusText);
+/**
+ * Parses one SSE frame per the spec: strip at most one leading space after
+ * `data:`, and join multiple `data:` lines with a newline.
+ *
+ * The previous implementation did `data += line.slice(5).trim()`, which threw
+ * away every line break and every edge space in streamed prose — so a
+ * multi-paragraph continuation arrived as one run-on line.
+ */
+export function parseSseFrame(raw: string): RawSseEvent | null {
+  let event = "message";
+  const dataLines: string[] = [];
+
+  for (const line of raw.split("\n")) {
+    if (!line || line.startsWith(":")) continue; // blank or comment/heartbeat
+    const colon = line.indexOf(":");
+    const field = colon === -1 ? line : line.slice(0, colon);
+    let value = colon === -1 ? "" : line.slice(colon + 1);
+    if (value.startsWith(" ")) value = value.slice(1);
+
+    if (field === "event") event = value;
+    else if (field === "data") dataLines.push(value);
   }
+
+  if (event === "message" && dataLines.length === 0) return null;
+  return { event, data: dataLines.join("\n") };
+}
+
+/** Splits a buffer into complete frames, returning the unconsumed remainder. */
+export function drainSseBuffer(buffer: string): { frames: RawSseEvent[]; rest: string } {
+  const frames: RawSseEvent[] = [];
+  // Normalise CRLF so a proxy that rewrites line endings can't hide the
+  // frame separator from us.
+  let rest = buffer.replace(/\r\n/g, "\n");
+  let sep: number;
+  while ((sep = rest.indexOf("\n\n")) !== -1) {
+    const frame = parseSseFrame(rest.slice(0, sep));
+    rest = rest.slice(sep + 2);
+    if (frame) frames.push(frame);
+  }
+  return { frames, rest };
+}
+
+async function* streamSse(
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+): AsyncGenerator<RawSseEvent> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    throw new ApiError(0, "Connexion au serveur impossible.", "network");
+  }
+
+  if (!res.ok || !res.body) throw await toApiError(res);
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    let sepIndex: number;
-    while ((sepIndex = buffer.indexOf("\n\n")) !== -1) {
-      const rawEvent = buffer.slice(0, sepIndex);
-      buffer = buffer.slice(sepIndex + 2);
-
-      let event = "message";
-      let data = "";
-      for (const line of rawEvent.split("\n")) {
-        if (line.startsWith("event:")) event = line.slice(6).trim();
-        else if (line.startsWith("data:")) data += line.slice(5).trim();
-      }
-      yield { event, data };
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const { frames, rest } = drainSseBuffer(buffer);
+      buffer = rest;
+      for (const frame of frames) yield frame;
     }
+    // A final frame not terminated by a blank line was silently dropped.
+    buffer += decoder.decode();
+    const trailing = parseSseFrame(buffer);
+    if (trailing) yield trailing;
+  } finally {
+    // Abandoning the generator (component unmount, user hit Stop) must also
+    // release the connection, or the request keeps streaming in the
+    // background.
+    await reader.cancel().catch(() => {});
+  }
+}
+
+/** Tool payloads arrive as JSON; a malformed frame must not kill the stream. */
+function parseJsonData<T>(data: string): T | null {
+  try {
+    return JSON.parse(data) as T;
+  } catch {
+    return null;
   }
 }
 
@@ -224,12 +359,20 @@ export type ChatEvent =
   | { type: "error"; data: string }
   | { type: "done" };
 
-export async function* streamChat(bookId: string, message: string): AsyncGenerator<ChatEvent> {
-  for await (const { event, data } of streamSse(`/books/${bookId}/chat`, { message })) {
+export async function* streamChat(
+  bookId: string,
+  message: string,
+  signal?: AbortSignal,
+): AsyncGenerator<ChatEvent> {
+  for await (const { event, data } of streamSse(`/books/${bookId}/chat`, { message }, signal)) {
     if (event === "text") yield { type: "text", data };
-    else if (event === "tool_call") yield { type: "tool_call", data: JSON.parse(data) };
-    else if (event === "tool_result") yield { type: "tool_result", data: JSON.parse(data) };
-    else if (event === "error") yield { type: "error", data };
+    else if (event === "tool_call") {
+      const parsed = parseJsonData<{ name: string; input: unknown }>(data);
+      if (parsed) yield { type: "tool_call", data: parsed };
+    } else if (event === "tool_result") {
+      const parsed = parseJsonData<{ name: string; output: string }>(data);
+      if (parsed) yield { type: "tool_result", data: parsed };
+    } else if (event === "error") yield { type: "error", data };
     else if (event === "done") yield { type: "done" };
   }
 }
@@ -253,13 +396,21 @@ export type SessionEvent =
 export async function* streamSession(
   bookId: string,
   body: StartSessionBody,
+  signal?: AbortSignal,
 ): AsyncGenerator<SessionEvent> {
-  for await (const { event, data } of streamSse(`/books/${bookId}/sessions`, body)) {
+  for await (const { event, data } of streamSse(`/books/${bookId}/sessions`, body, signal)) {
     if (event === "text") yield { type: "text", data };
-    else if (event === "tool_call") yield { type: "tool_call", data: JSON.parse(data) };
-    else if (event === "tool_result") yield { type: "tool_result", data: JSON.parse(data) };
-    else if (event === "error") yield { type: "error", data };
-    else if (event === "session_done") yield { type: "session_done", data: JSON.parse(data) };
+    else if (event === "tool_call") {
+      const parsed = parseJsonData<{ name: string; input: unknown }>(data);
+      if (parsed) yield { type: "tool_call", data: parsed };
+    } else if (event === "tool_result") {
+      const parsed = parseJsonData<{ name: string; output: string }>(data);
+      if (parsed) yield { type: "tool_result", data: parsed };
+    } else if (event === "error") yield { type: "error", data };
+    else if (event === "session_done") {
+      const parsed = parseJsonData<{ tag: string }>(data);
+      if (parsed) yield { type: "session_done", data: parsed };
+    }
   }
 }
 

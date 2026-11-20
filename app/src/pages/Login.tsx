@@ -1,12 +1,17 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 
 export function Login() {
-  const initialMode = new URLSearchParams(window.location.search).get("mode") === "register"
-    ? "register"
-    : "login";
+  // `useSearchParams` rather than reading window.location once at render, so
+  // a client-side navigation to /login?mode=register actually switches mode.
+  const [params] = useSearchParams();
+  const initialMode = params.get("mode") === "register" ? "register" : "login";
   const [mode, setMode] = useState<"login" | "register" | "forgot">(initialMode);
+  // Set by the central 401 handler, so an expired session explains itself
+  // instead of silently dumping the user on a login form.
+  const sessionExpired = params.get("expired") === "1";
+  const next = params.get("next");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inviteCode, setInviteCode] = useState("");
@@ -18,18 +23,21 @@ export function Login() {
     e.preventDefault();
     setError(null);
     try {
+      // Only follow an in-app path, never an absolute URL from the query
+      // string — that would be an open redirect.
+      const destination = next && next.startsWith("/") && !next.startsWith("//") ? next : "/books";
       if (mode === "login") {
         await api.login(email, password);
-        navigate("/books");
+        navigate(destination);
       } else if (mode === "register") {
         await api.register(email, password, inviteCode);
-        navigate("/books");
+        navigate(destination);
       } else {
         await api.forgotPassword(email);
         setForgotSent(true);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong");
+      setError(err instanceof ApiError ? err.message : "Une erreur est survenue.");
     }
   }
 
@@ -39,6 +47,10 @@ export function Login() {
         <img src="/logo.svg" alt="Ink Gateway" className="logo" />
         <h1>Ink Gateway</h1>
         <p className="subtitle">Écrire avec un co-auteur IA, sans jamais quitter le navigateur.</p>
+
+        {sessionExpired && (
+          <p className="notice">Ta session a expiré — reconnecte-toi pour reprendre.</p>
+        )}
 
         {mode === "forgot" && forgotSent ? (
           <p className="success">
@@ -119,7 +131,7 @@ export function ResetPassword() {
       await api.resetPassword(token, password);
       setDone(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong");
+      setError(err instanceof ApiError ? err.message : "Une erreur est survenue.");
     }
   }
 

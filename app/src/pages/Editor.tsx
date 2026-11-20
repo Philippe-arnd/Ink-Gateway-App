@@ -4,6 +4,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { Text } from "@tiptap/extension-text";
 import {
   api,
+  ApiError,
   streamSession,
   type BookContext,
   type Comment,
@@ -12,6 +13,7 @@ import {
   type VersionEntry,
 } from "../api";
 import { PlainDoc, PlainBlock, PlainTextKeymap, charOffsetToPos, posToCharOffset } from "../plainText";
+import { diffRange } from "../lib/draftDiff";
 import { IconArrowRight, IconCheck, IconComment, IconPencil, IconSparkles } from "../icons";
 import { SessionModal } from "../components/SessionModal";
 import { DiffView } from "../components/DiffView";
@@ -27,19 +29,35 @@ const GLOBAL_MATERIAL_TABS: Record<string, string> = {
   lore: "Lore.md",
 };
 
-function diffRange(oldText: string, newText: string): { start: number; end: number; content: string } {
-  let start = 0;
-  const maxStart = Math.min(oldText.length, newText.length);
-  while (start < maxStart && oldText[start] === newText[start]) start++;
+const VERSION_PAGE_SIZE = 20;
 
-  let oldEnd = oldText.length;
-  let newEnd = newText.length;
-  while (oldEnd > start && newEnd > start && oldText[oldEnd - 1] === newText[newEnd - 1]) {
-    oldEnd--;
-    newEnd--;
+/// Human-readable labels for the agent's tools. The raw
+/// `name({"content":"...entire manuscript..."})` dump was unreadable.
+const TOOL_LABELS: Record<string, string> = {
+  replace_current: "Réécriture du brouillon",
+  insert_text: "Insertion de texte",
+  rewrite_range: "Réécriture d'un passage",
+  add_comment: "Ajout d'un commentaire",
+  resolve_comment: "Commentaire résolu",
+  rewrite_global_file: "Mise à jour d'un document de fond",
+};
+
+function describeToolName(name: string): string {
+  return TOOL_LABELS[name] ?? name;
+}
+
+function describeToolCall({ name, input }: { name: string; input: unknown }): string {
+  const label = describeToolName(name);
+  const arg = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
+  const content = typeof arg.content === "string" ? arg.content : undefined;
+  const path = typeof arg.path === "string" ? arg.path : undefined;
+
+  if (path) return `${label} — ${path}`;
+  if (content !== undefined) {
+    const words = content.trim() ? content.trim().split(/\s+/).length : 0;
+    return `${label} — ${words} mot${words === 1 ? "" : "s"}`;
   }
-
-  return { start, end: oldEnd, content: newText.slice(start, newEnd) };
+  return label;
 }
 
 function docFromText(text: string) {
@@ -54,13 +72,28 @@ type ChatLine =
   | { kind: "assistant"; text: string }
   | { kind: "tool_call" | "tool_result" | "tool_error"; text: string };
 
+type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
+
+const SAVE_DEBOUNCE_MS = 1200;
+/// Capped exponential backoff, so a server that is down for a minute doesn't
+/// turn into a request storm but still recovers on its own.
+const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 15000];
+
+function messageOf(err: unknown): string {
+  if (err instanceof ApiError) return err.message;
+  if (err instanceof Error) return err.message;
+  return "Erreur inconnue";
+}
+
 export function Editor() {
   const { id } = useParams<{ id: string }>();
   const [ctx, setCtx] = useState<BookContext | null>(null);
   const [tab, setTab] = useState<"prose" | "soul" | "outline" | "characters" | "lore">("prose");
   const [comments, setComments] = useState<Comment[]>([]);
   const [versions, setVersions] = useState<VersionEntry[]>([]);
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [sessionPhase, setSessionPhase] = useState<"idle" | "running" | "error" | "diff">("idle");
   const [sessionLog, setSessionLog] = useState<ChatLine[]>([]);
@@ -71,6 +104,13 @@ export function Editor() {
   const [modifiedFoundations, setModifiedFoundations] = useState<string[]>([]);
   const lastSynced = useRef("");
   const saveTimer = useRef<number | null>(null);
+  const retryTimer = useRef<number | null>(null);
+  const retryAttempt = useRef(0);
+  /// The newest text the user has typed, whether or not it reached the server.
+  /// Kept in a ref so unmount/visibility flushes can see it without a
+  /// re-render, and so a failed save can be retried with current content.
+  const pendingText = useRef<string | null>(null);
+  const logRef = useRef<HTMLDivElement | null>(null);
 
   const editor = useEditor({
     extensions: [PlainDoc, PlainBlock, Text, PlainTextKeymap],
@@ -82,43 +122,119 @@ export function Editor() {
 
   const refresh = useCallback(async () => {
     if (!id) return;
-    const [bookCtx, commentList, versionList] = await Promise.all([
-      api.getBook(id),
-      api.listComments(id),
-      api.listVersions(id).catch(() => []),
-    ]);
-    setCtx(bookCtx);
-    setComments(commentList);
-    setVersions(versionList);
-    lastSynced.current = bookCtx.current;
-    editor?.commands.setContent(docFromText(bookCtx.current));
+    try {
+      const [bookCtx, commentList, versionPage] = await Promise.all([
+        api.getBook(id),
+        api.listComments(id),
+        api.listVersions(id, undefined, VERSION_PAGE_SIZE).catch(() => null),
+      ]);
+      setCtx(bookCtx);
+      setComments(commentList);
+      setVersions(versionPage?.versions ?? []);
+      setLoadError(null);
+      lastSynced.current = bookCtx.current;
+      pendingText.current = null;
+      editor?.commands.setContent(docFromText(bookCtx.current));
+    } catch (err) {
+      // Previously uncaught, which left the page on an eternal
+      // "Chargement du livre…" with no message and no way out.
+      setLoadError(messageOf(err));
+    }
   }, [id, editor]);
 
   useEffect(() => {
-    if (editor) refresh();
+    if (editor) void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, id]);
 
   function scheduleSave(text: string) {
-    setSaveState("idle");
+    pendingText.current = text;
+    setSaveState(text === lastSynced.current ? "saved" : "dirty");
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(() => void save(text), 1200);
+    saveTimer.current = window.setTimeout(() => void save(text), SAVE_DEBOUNCE_MS);
   }
 
-  async function save(text: string) {
-    if (!id || text === lastSynced.current) return;
-    setSaveState("saving");
-    const { start, end, content } = diffRange(lastSynced.current, text);
-    await api.rewriteRange(id, start, end, content);
-    lastSynced.current = text;
-    setSaveState("saved");
-    const [commentList, versionList] = await Promise.all([
-      api.listComments(id),
-      api.listVersions(id).catch(() => []),
-    ]);
-    setComments(commentList);
-    setVersions(versionList);
-  }
+  const save = useCallback(
+    async function save(text: string): Promise<void> {
+      if (!id || text === lastSynced.current) {
+        pendingText.current = null;
+        return;
+      }
+      setSaveState("saving");
+      const { start, end, content } = diffRange(lastSynced.current, text);
+      try {
+        await api.rewriteRange(id, start, end, content);
+      } catch (err) {
+        // Critically, `lastSynced` is NOT advanced: the next attempt still
+        // diffs against what the server actually has. Before this, a failed
+        // save pinned the chip on "Enregistrement…" for ever while the author
+        // kept typing into a document that was no longer being persisted.
+        setSaveState("error");
+        const delay = RETRY_DELAYS_MS[Math.min(retryAttempt.current, RETRY_DELAYS_MS.length - 1)];
+        retryAttempt.current += 1;
+        if (retryTimer.current) window.clearTimeout(retryTimer.current);
+        retryTimer.current = window.setTimeout(() => {
+          const latest = pendingText.current;
+          if (latest !== null) void save(latest);
+        }, delay);
+        throw err;
+      }
+      retryAttempt.current = 0;
+      lastSynced.current = text;
+      if (pendingText.current === text) pendingText.current = null;
+      setSaveState("saved");
+    },
+    [id],
+  );
+
+  /// Flushes any debounced edit immediately — on Cmd+S, and before the tab
+  /// goes away. Without this, the last keystrokes inside the debounce window
+  /// were lost on navigation.
+  const flushSave = useCallback(() => {
+    if (saveTimer.current) {
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    const text = pendingText.current;
+    if (text !== null && text !== lastSynced.current) void save(text).catch(() => {});
+  }, [save]);
+
+  useEffect(() => {
+    const onHide = () => flushSave();
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flushSave();
+    };
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      flushSave();
+      if (pendingText.current !== null && pendingText.current !== lastSynced.current) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("pagehide", onHide);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      window.removeEventListener("pagehide", onHide);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      // Timers were never cleared, so a pending save could fire against an
+      // unmounted component after a route change.
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+      if (retryTimer.current) window.clearTimeout(retryTimer.current);
+      onHide();
+    };
+  }, [flushSave]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        flushSave();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [flushSave]);
 
   async function addCommentToSelection() {
     if (!id || !editor) return;
@@ -129,14 +245,22 @@ export function Editor() {
     }
     const text = window.prompt("Commentaire :");
     if (!text) return;
-    await api.addComment(id, posToCharOffset(from), posToCharOffset(to), text);
-    setComments(await api.listComments(id));
+    try {
+      await api.addComment(id, posToCharOffset(from), posToCharOffset(to), text);
+      setComments(await api.listComments(id));
+    } catch (err) {
+      window.alert(`Impossible d'ajouter le commentaire : ${messageOf(err)}`);
+    }
   }
 
   async function resolveComment(commentId: string) {
     if (!id) return;
-    await api.resolveComment(id, commentId);
-    setComments(await api.listComments(id));
+    try {
+      await api.resolveComment(id, commentId);
+      setComments(await api.listComments(id));
+    } catch (err) {
+      window.alert(`Impossible de résoudre le commentaire : ${messageOf(err)}`);
+    }
   }
 
   async function saveGlobalMaterial(tab: string) {
@@ -148,16 +272,25 @@ export function Editor() {
       await api.saveGlobalMaterial(id, `Global Material/${filename}`, content);
       setModifiedFoundations((m) => (m.includes(filename) ? m : [...m, filename]));
       await refresh();
+    } catch (err) {
+      window.alert(`Enregistrement impossible : ${messageOf(err)}`);
     } finally {
       setGlobalSaving(false);
     }
   }
 
   async function restoreVersion(commit: string) {
-    if (!id) return;
+    if (!id || busy) return;
     if (!window.confirm("Restaurer cette version ? (crée un nouveau commit, l'historique reste intact)")) return;
-    await api.restoreVersion(id, commit);
-    await refresh();
+    setBusy(true);
+    try {
+      await api.restoreVersion(id, commit);
+      await refresh();
+    } catch (err) {
+      window.alert(`Restauration impossible : ${messageOf(err)}`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   function highlightSelection(comment: Comment) {
@@ -187,40 +320,60 @@ export function Editor() {
 
     let tag: string | null = null;
     try {
-      for await (const event of streamSession(id, { intent, instruction, selection_start, selection_end })) {
+      for await (const event of streamSession(id, {
+        intent,
+        instruction,
+        selection_start,
+        selection_end,
+      })) {
         if (event.type === "text") {
-          setSessionLog((c) => [...c, { kind: "assistant", text: event.data }]);
+          // Append to the message already streaming rather than pushing a new
+          // bubble per delta — that rendered a paragraph as a stack of dozens
+          // of separate boxes.
+          setSessionLog((c) => {
+            const last = c[c.length - 1];
+            if (last?.kind === "assistant") {
+              return [...c.slice(0, -1), { kind: "assistant", text: last.text + event.data }];
+            }
+            return [...c, { kind: "assistant", text: event.data }];
+          });
         } else if (event.type === "tool_call") {
-          setSessionLog((c) => [
-            ...c,
-            { kind: "tool_call", text: `${event.data.name}(${JSON.stringify(event.data.input)})` },
-          ]);
+          setSessionLog((c) => [...c, { kind: "tool_call", text: describeToolCall(event.data) }]);
         } else if (event.type === "tool_result") {
-          setSessionLog((c) => [...c, { kind: "tool_result", text: event.data.name }]);
+          setSessionLog((c) => [...c, { kind: "tool_result", text: describeToolName(event.data.name) }]);
         } else if (event.type === "error") {
           setSessionLog((c) => [...c, { kind: "tool_error", text: event.data }]);
         } else if (event.type === "session_done") {
           tag = event.data.tag;
         }
       }
-    } catch (err) {
-      setSessionLog((c) => [
-        ...c,
-        { kind: "tool_error", text: err instanceof Error ? err.message : "Erreur inconnue" },
-      ]);
-    }
 
-    if (!tag) {
+      if (!tag) {
+        setSessionPhase("error");
+        return;
+      }
+      setSessionTag(tag);
+      // Previously awaited outside the try, so a failure here left the panel
+      // spinning in "running" with no way to recover.
+      const diff = await api.getSessionDiff(id, tag);
+      setSessionDiff(diff);
+      setSessionPhase("diff");
+    } catch (err) {
+      setSessionLog((c) => [...c, { kind: "tool_error", text: messageOf(err) }]);
       setSessionPhase("error");
-      return;
     }
-    setSessionTag(tag);
-    const diff = await api.getSessionDiff(id, tag);
-    setSessionDiff(diff);
-    setSessionPhase("diff");
   }
 
   async function acceptSession() {
+    // `refresh()` calls setContent, which overwrites the buffer. If the author
+    // typed while the agent was running, that text would be silently lost, so
+    // ask before discarding it.
+    const dirty = pendingText.current !== null && pendingText.current !== lastSynced.current;
+    if (dirty && !window.confirm(
+      "Tu as écrit pendant que l'agent travaillait. Recharger va remplacer ton texte non enregistré. Continuer ?",
+    )) {
+      return;
+    }
     setSessionPhase("idle");
     setSessionTag(null);
     setSessionDiff(null);
@@ -228,18 +381,47 @@ export function Editor() {
   }
 
   async function rejectSession() {
-    if (!id || !sessionTag || !sessionDiff) return;
-    for (const f of sessionDiff.files) {
-      await api.restoreVersion(id, sessionTag, f.path);
+    if (!id || !sessionTag || !sessionDiff || busy) return;
+    setBusy(true);
+    try {
+      for (const f of sessionDiff.files) {
+        await api.restoreVersion(id, sessionTag, f.path);
+      }
+      setSessionPhase("idle");
+      setSessionTag(null);
+      setSessionDiff(null);
+      await refresh();
+    } catch (err) {
+      setSessionLog((c) => [...c, { kind: "tool_error", text: messageOf(err) }]);
+      setSessionPhase("error");
+    } finally {
+      setBusy(false);
     }
-    setSessionPhase("idle");
-    setSessionTag(null);
-    setSessionDiff(null);
-    await refresh();
   }
+
+  // Follow the stream. Without this the author watched the top of the output
+  // while generation continued off-screen.
+  useEffect(() => {
+    const el = logRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [sessionLog]);
 
   const openComments = useMemo(() => comments.filter((c) => !c.resolved), [comments]);
   const resolvedComments = useMemo(() => comments.filter((c) => c.resolved), [comments]);
+
+  if (loadError) {
+    return (
+      <div className="loading">
+        <p className="error">Impossible de charger ce livre : {loadError}</p>
+        <div className="loading-actions">
+          <button onClick={() => void refresh()}>Réessayer</button>
+          <Link to="/books" className="link">
+            Retour à mes livres
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (!ctx) return <div className="loading">Chargement du livre…</div>;
 
@@ -361,8 +543,18 @@ export function Editor() {
             <IconComment size={15} />
             Commenter la sélection
           </button>
-          <span className={`save-state ${saveState}`}>
-            {saveState === "saving" ? "Enregistrement…" : saveState === "saved" ? "Enregistré (git)" : ""}
+          <span className={`save-state ${saveState}`} role="status" aria-live="polite">
+            {saveState === "saving" && "Enregistrement…"}
+            {saveState === "saved" && "Enregistré (git)"}
+            {saveState === "dirty" && "Modifications non enregistrées"}
+            {saveState === "error" && (
+              <>
+                Échec de l'enregistrement — nouvelle tentative…{" "}
+                <button className="link" onClick={flushSave}>
+                  Réessayer
+                </button>
+              </>
+            )}
           </span>
         </div>
         <EditorContent editor={editor} className="prose-editor" />
@@ -390,7 +582,7 @@ export function Editor() {
               <IconSparkles className="icon spin" size={20} />
               <span>L'agent travaille…</span>
             </div>
-            <div className="chat-log">
+            <div className="chat-log" ref={logRef} aria-live="polite" aria-busy="true">
               {sessionLog.map((line, i) => (
                 <div key={i} className={`chat-line ${line.kind}`}>
                   {line.kind === "tool_call" && <IconArrowRight className="icon" />}
@@ -412,7 +604,12 @@ export function Editor() {
                 </div>
               ))}
             </div>
-            <button onClick={() => setSessionPhase("idle")}>Fermer</button>
+            <div className="session-error-actions">
+              <button onClick={() => setModalOpen(true)}>Réessayer</button>
+              <button className="link" onClick={() => setSessionPhase("idle")}>
+                Fermer
+              </button>
+            </div>
           </div>
         )}
 
@@ -426,10 +623,10 @@ export function Editor() {
               </div>
             ))}
             <div className="diff-actions">
-              <button className="reject" onClick={rejectSession}>
-                Rejeter
+              <button className="reject" onClick={rejectSession} disabled={busy}>
+                {busy ? "Annulation…" : "Rejeter"}
               </button>
-              <button className="accept" onClick={acceptSession}>
+              <button className="accept" onClick={acceptSession} disabled={busy}>
                 Accepter
               </button>
             </div>

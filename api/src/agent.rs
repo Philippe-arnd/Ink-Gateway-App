@@ -32,11 +32,7 @@ pub async fn load_provider(
     .fetch_optional(&state.db)
     .await?;
 
-    let (provider, key_type, encrypted_key) = row.ok_or_else(|| {
-        AppError::bad_request(
-            "no AI provider key configured — add one in Settings before chatting with the co-author",
-        )
-    })?;
+    let (provider, key_type, encrypted_key) = row.ok_or_else(AppError::no_provider_key)?;
 
     let credential = state.cipher.decrypt(&encrypted_key)?;
 

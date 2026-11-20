@@ -20,7 +20,7 @@ export function ApiKeyForm({ onSaved }: { onSaved: (status: ApiKeyStatus) => voi
       onSaved(result);
     } catch (err) {
       setState("error");
-      setError(err instanceof ApiError ? err.message : "Something went wrong");
+      setError(err instanceof ApiError ? err.message : "Une erreur est survenue.");
     }
   }
 
