@@ -19,5 +19,8 @@
       "automerge": false,
       "addLabels": ["major-update"]
     }
-  ]
+  ],
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "🤖 Renovate Dashboard",
+  "dependencyDashboardHeader": "This dashboard shows all pending updates managed by Renovate Bot."
 }
