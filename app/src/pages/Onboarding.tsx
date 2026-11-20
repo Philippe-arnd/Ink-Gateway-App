@@ -89,7 +89,7 @@ export function Onboarding() {
       setBook(created);
       setStep("offer-expand");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong");
+      setError(err instanceof ApiError ? err.message : "Une erreur est survenue.");
       setStep("book-info");
     }
   }

@@ -28,6 +28,8 @@ jobs:
       required-checks: |
         web
         api
+        app
+        landing
       merge-method: 'squash'
       base-branch: 'main'
       block-label: ''

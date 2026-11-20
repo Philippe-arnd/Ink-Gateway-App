@@ -9,19 +9,27 @@
 # still Vite) — only the build artifacts merge. Build context is the repo root,
 # hence the `landing/`- and `app/`-prefixed COPY paths; see `.dockerignore`.
 
+# Both build stages mirror the repo layout (/build/landing, /build/app with a
+# sibling /build/design) rather than flattening the project to the WORKDIR.
+# The shared stylesheet is imported by relative path — ../../design/tokens.css
+# from app/src, ../../../design/tokens.css from landing/src/layouts — so the
+# directory nesting has to match, or those imports resolve above the context
+# and the build fails here instead of in production.
 FROM node:26-bookworm-slim AS landing
-WORKDIR /build
+WORKDIR /build/landing
 COPY landing/package.json landing/package-lock.json ./
 RUN npm ci
+COPY design/ /build/design/
 COPY landing/ .
 ARG PUBLIC_APP_URL=https://ink-gateway.philapps.com/app
 ENV PUBLIC_APP_URL=$PUBLIC_APP_URL
 RUN npm run build
 
 FROM node:26-bookworm-slim AS app
-WORKDIR /build
+WORKDIR /build/app
 COPY app/package.json app/package-lock.json ./
 RUN npm ci
+COPY design/ /build/design/
 COPY app/ .
 # Ends in /api because Coolify's Domains entry for the api service is
 # https://<domain>/api, which always generates a stripprefix — Axum's own
@@ -38,8 +46,8 @@ FROM nginx:1-alpine
 RUN apk upgrade --no-cache
 # The SPA lands in a real `app/` subdirectory rather than being aliased there,
 # so the URL path and the filesystem path line up — see nginx.conf.
-COPY --from=landing /build/dist /usr/share/nginx/html
-COPY --from=app /build/dist /usr/share/nginx/html/app
+COPY --from=landing /build/landing/dist /usr/share/nginx/html
+COPY --from=app /build/app/dist /usr/share/nginx/html/app
 COPY web/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 # 127.0.0.1, never `localhost`: nginx.conf listens on IPv4 only, and this

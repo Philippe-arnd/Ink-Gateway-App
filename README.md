@@ -17,9 +17,11 @@ Both act directly on the manuscript — inserting prose, rewriting sections, lea
 |---|---|
 | Backend API | Rust (Axum), depends on `ink_core` (git dependency on `Ink-Gateway`) |
 | Frontend | React + Vite + TypeScript |
-| Editor | TipTap, single-block plain-text schema (prose-only, no formatting toolbar) |
+| Editor | TipTap, single-block plain-text schema (prose-only, no formatting toolbar), with a zen writing mode |
+| Design | `design/tokens.css` + `design/primitives.css` at the repo root, shared by the marketing site and the app; light and dark themes |
 | Storage | Git working copies per book (content) + SQLite (users/sessions/registry/password-reset tokens) |
 | AI Orchestration | `api/src/agent.rs` — one tool-use loop shared by chat and writing sessions, Anthropic or Gemini |
+| Tests | Rust unit + wire-format tests (`cargo test`), Vitest on the frontend (`npm test`) |
 | Email | Resend (password reset) |
 | Deployment | Docker Compose on a personal VPS (Coolify) |
 
@@ -36,6 +38,15 @@ cargo run
 
 # Frontend
 cd app && npm install && npm run dev
+```
+
+Checks, matching CI:
+
+```bash
+cd api && cargo fmt --all --check && cargo clippy --all-targets -- -D warnings && cargo test
+cd app && npm run lint && npx tsc -b && npm test
+cd landing && npm run build
+docker build -f web/Dockerfile .   # the image that actually ships
 ```
 
 Register a book by pointing `INK_GATEWAY_BOOKS_DIR` (or the default `api/data/books/`) at a directory scaffolded by `ink-cli init`, then register it via `POST /api/books` with that directory's name as `slug`.

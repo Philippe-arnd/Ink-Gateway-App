@@ -32,11 +32,7 @@ pub async fn load_provider(
     .fetch_optional(&state.db)
     .await?;
 
-    let (provider, key_type, encrypted_key) = row.ok_or_else(|| {
-        AppError::bad_request(
-            "no AI provider key configured — add one in Settings before chatting with the co-author",
-        )
-    })?;
+    let (provider, key_type, encrypted_key) = row.ok_or_else(AppError::no_provider_key)?;
 
     let credential = state.cipher.decrypt(&encrypted_key)?;
 
@@ -275,5 +271,78 @@ pub fn run_loop(
         }
 
         yield Ok(Event::default().event("done").data(""));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::response::IntoResponse;
+    use axum::response::sse::{Event, Sse};
+    use futures::stream;
+    use http_body_util::BodyExt;
+    use serde_json::json;
+    use std::convert::Infallible;
+
+    /// Serializes events exactly as the browser receives them, so the wire
+    /// format the frontend parser assumes is pinned on this side too.
+    async fn wire(events: Vec<Event>) -> String {
+        let stream = stream::iter(events.into_iter().map(Ok::<_, Infallible>));
+        let body = Sse::new(stream).into_response().into_body();
+        let bytes = body.collect().await.unwrap().to_bytes();
+        String::from_utf8(bytes.to_vec()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_single_line_text_event_is_one_data_field() {
+        let out = wire(vec![Event::default().event("text").data("hello")]).await;
+        assert_eq!(out, "event: text\ndata: hello\n\n");
+    }
+
+    #[tokio::test]
+    async fn multi_line_text_is_split_into_one_data_field_per_line() {
+        // This is the detail the old frontend parser got wrong: it joined
+        // these with no separator after trimming each one, so a streamed
+        // paragraph lost every line break. The frames must be reassembled
+        // by joining `data:` fields with "\n".
+        let out = wire(vec![
+            Event::default().event("text").data("para one\n\npara two"),
+        ])
+        .await;
+        assert_eq!(
+            out,
+            "event: text\ndata: para one\ndata: \ndata: para two\n\n"
+        );
+    }
+
+    #[tokio::test]
+    async fn leading_whitespace_in_a_delta_survives_the_round_trip() {
+        // A delta boundary often falls mid-sentence, so a leading space is
+        // meaningful content. SSE eats exactly one space after the colon,
+        // which is why the writer emits two here.
+        let out = wire(vec![Event::default().event("text").data(" indented")]).await;
+        assert_eq!(out, "event: text\ndata:  indented\n\n");
+    }
+
+    #[tokio::test]
+    async fn tool_events_carry_compact_json() {
+        let out = wire(vec![Event::default().event("tool_call").data(
+            json!({ "name": "insert_text", "input": { "position": 0 } }).to_string(),
+        )])
+        .await;
+        assert_eq!(
+            out,
+            "event: tool_call\ndata: {\"input\":{\"position\":0},\"name\":\"insert_text\"}\n\n"
+        );
+    }
+
+    #[tokio::test]
+    async fn the_terminal_done_event_carries_no_data_field_at_all() {
+        // `.data("")` writes nothing, so `done` reaches the browser as a
+        // frame with an event name and zero `data:` lines. A parser that
+        // requires a data field would drop the end-of-stream signal
+        // entirely, so the frontend treats a named field-less frame as
+        // valid with empty data — see parseSseFrame in app/src/api.ts.
+        let out = wire(vec![Event::default().event("done").data("")]).await;
+        assert_eq!(out, "event: done\n\n");
     }
 }

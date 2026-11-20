@@ -10,12 +10,10 @@ mod routes;
 mod state;
 
 use std::path::PathBuf;
-use std::time::Duration;
 
 use anyhow::Context;
 use tower_http::cors::{AllowCredentials, CorsLayer};
 use tower_http::limit::RequestBodyLimitLayer;
-use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 use tower_sessions::cookie::SameSite;
 use tower_sessions::{Expiry, MemoryStore, SessionManagerLayer};
@@ -91,22 +89,24 @@ async fn main() -> anyhow::Result<()> {
         .allow_methods([
             axum::http::Method::GET,
             axum::http::Method::POST,
+            axum::http::Method::PUT,
+            axum::http::Method::PATCH,
             axum::http::Method::DELETE,
+            axum::http::Method::OPTIONS,
         ])
-        .allow_headers([axum::http::header::CONTENT_TYPE]);
+        .allow_headers([
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::IF_MATCH,
+        ])
+        // The draft's optimistic-concurrency token travels as an ETag, which
+        // a credentialed cross-origin response hides unless it's exposed.
+        .expose_headers([axum::http::header::ETAG]);
 
     let app = routes::router()
         .with_state(state)
         .layer(session_layer)
         .layer(cors)
         .layer(TraceLayer::new_for_http())
-        // SSE sessions can legitimately run for a few minutes (agentic tool
-        // loop); this is a backstop against a genuinely hung connection, not
-        // a normal-path limit.
-        .layer(TimeoutLayer::with_status_code(
-            axum::http::StatusCode::GATEWAY_TIMEOUT,
-            Duration::from_secs(300),
-        ))
         .layer(RequestBodyLimitLayer::new(MAX_BODY_BYTES));
 
     tracing::info!("ink-gateway-api listening on {bind_addr}");

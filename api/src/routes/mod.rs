@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod books;
+pub mod chapters;
 pub mod chat;
 pub mod comments;
 pub mod edit;
@@ -9,12 +10,20 @@ pub mod settings;
 pub mod util;
 pub mod versions;
 
+use std::time::Duration;
+
 use axum::Router;
 use axum::routing::{get, post};
 use tower_governor::GovernorLayer;
 use tower_governor::governor::GovernorConfigBuilder;
+use tower_http::timeout::TimeoutLayer;
 
 use crate::state::AppState;
+
+/// Backstop against a genuinely hung request. Deliberately *not* applied to
+/// the SSE routes: an agentic tool loop can legitimately run for many
+/// minutes, and a blanket timeout 504'd those mid-stream.
+const REQUEST_TIMEOUT_SECS: u64 = 300;
 
 /// Credential-guessing surface (login, register, password reset) gets its
 /// own stricter, per-IP rate limit — a handful of bursts, then a slow
@@ -60,7 +69,13 @@ pub fn router() -> Router<AppState> {
         .route("/auth/reset-password", post(auth::reset_password))
         .layer(auth_rate_limit());
 
-    auth_routes
+    // Streaming routes stay out of the timeout layer entirely — see
+    // REQUEST_TIMEOUT_SECS.
+    let stream_routes = Router::new()
+        .route("/books/{id}/chat", post(chat::chat))
+        .route("/books/{id}/sessions", post(sessions::start));
+
+    let timed_routes = auth_routes
         .route("/auth/logout", post(auth::logout))
         .route("/auth/me", get(auth::me))
         .route(
@@ -87,10 +102,18 @@ pub fn router() -> Router<AppState> {
             "/books/{id}/comments/{comment_id}/resolve",
             post(comments::resolve),
         )
+        .route("/books/{id}/chapters", get(chapters::list))
+        .route("/books/{id}/chapters/{number}", get(chapters::get))
+        .route("/books/{id}/chapters/advance", post(chapters::advance))
+        .route("/books/{id}/stats", get(chapters::stats))
         .route("/books/{id}/versions", get(versions::list))
         .route("/books/{id}/versions/restore", post(versions::restore))
-        .route("/books/{id}/chat", post(chat::chat))
-        .route("/books/{id}/sessions", post(sessions::start))
         .route("/books/{id}/sessions/{tag}/diff", get(sessions::diff))
         .merge(health_route)
+        .layer(TimeoutLayer::with_status_code(
+            axum::http::StatusCode::GATEWAY_TIMEOUT,
+            Duration::from_secs(REQUEST_TIMEOUT_SECS),
+        ));
+
+    timed_routes.merge(stream_routes)
 }

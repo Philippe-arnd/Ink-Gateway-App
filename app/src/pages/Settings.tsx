@@ -1,19 +1,36 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type ApiKeyStatus } from "../api";
+import { api, ApiError, type ApiKeyStatus } from "../api";
 import { ApiKeyForm } from "../components/ApiKeyForm";
 
 export function Settings() {
   const [status, setStatus] = useState<ApiKeyStatus | null>(null);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Previously had no .catch, so a failure left a blank card plus an
+  // unhandled rejection.
   useEffect(() => {
-    api.getApiKey().then(setStatus);
+    api
+      .getApiKey()
+      .then(setStatus)
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Erreur inconnue"));
   }, []);
 
   async function remove() {
-    await api.deleteApiKey();
-    setStatus({ configured: false, provider: null, key_type: null, last_four: null, last_error: null });
+    setError(null);
+    try {
+      await api.deleteApiKey();
+      setStatus({
+        configured: false,
+        provider: null,
+        key_type: null,
+        last_four: null,
+        last_error: null,
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Suppression impossible.");
+    }
   }
 
   return (
@@ -27,6 +44,7 @@ export function Settings() {
 
       <section className="settings-card">
         <h2>Co-auteur IA</h2>
+        {error && <p className="error">{error}</p>}
         <p className="muted">
           Le chat éditeur utilise ta propre clé — elle est chiffrée (AES-256-GCM) côté serveur et
           n'est jamais renvoyée au navigateur après enregistrement.
