@@ -26,8 +26,8 @@ jobs:
     uses: Philippe-arnd/reusable-workflow-vibecoded/.github/workflows/reusable-auto-merge.yml@main
     with:
       required-checks: |
-        CI / web
-        CI / api
+        web
+        api
       merge-method: 'squash'
       base-branch: 'main'
       block-label: 'major-update'
