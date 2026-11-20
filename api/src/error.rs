@@ -57,6 +57,14 @@ impl AppError {
         Self::new(StatusCode::NOT_FOUND, code::NOT_FOUND, message)
     }
 
+    /// Attaches a structured payload for the UI — e.g. how many words are
+    /// still missing before a chapter can advance. Must not carry anything
+    /// sensitive; it is serialized straight to the browser.
+    pub fn with_details(mut self, details: Value) -> Self {
+        self.details = Some(details);
+        self
+    }
+
     pub fn no_provider_key() -> Self {
         Self::new(
             StatusCode::BAD_REQUEST,

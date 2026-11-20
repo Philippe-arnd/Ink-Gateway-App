@@ -8,6 +8,7 @@ import {
   streamSession,
   type BookContext,
   type Comment,
+  type ChapterDetail,
   type SessionDiff,
   type SessionIntent,
   type VersionEntry,
@@ -19,6 +20,7 @@ import { SessionModal } from "../components/SessionModal";
 import { DiffView } from "../components/DiffView";
 import { AccountMenu } from "../components/AccountMenu";
 import { ChatPanel } from "../features/chat/ChatPanel";
+import { ChapterRail } from "../features/editor/ChapterRail";
 
 // Maps an editor sidebar tab to the foundational file it edits — the other
 // four of `ink_core::edit::FOUNDATION_PATHS`' five allow-listed files
@@ -106,6 +108,10 @@ export function Editor() {
   const [zen, setZen] = useState(false);
   // Which pane is showing on a narrow screen, where all three can't fit.
   const [mobilePane, setMobilePane] = useState<"book" | "prose" | "ai">("prose");
+  /// Which chapter's outline is open for reading, if any. The draft itself is
+  /// always `Review/current.md`; this is a reference view beside it.
+  const [openChapter, setOpenChapter] = useState<number | null>(null);
+  const [chapterDetail, setChapterDetail] = useState<ChapterDetail | null>(null);
   const [sessionPhase, setSessionPhase] = useState<"idle" | "running" | "error" | "diff">("idle");
   const [sessionLog, setSessionLog] = useState<ChatLine[]>([]);
   const [sessionTag, setSessionTag] = useState<string | null>(null);
@@ -443,6 +449,25 @@ export function Editor() {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    if (!id || openChapter === null) {
+      setChapterDetail(null);
+      return;
+    }
+    let cancelled = false;
+    void api
+      .getChapter(id, openChapter)
+      .then((detail) => {
+        if (!cancelled) setChapterDetail(detail);
+      })
+      .catch(() => {
+        if (!cancelled) setChapterDetail(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, openChapter]);
+
   // Follow the stream. Without this the author watched the top of the output
   // while generation continued off-screen.
   useEffect(() => {
@@ -491,19 +516,13 @@ export function Editor() {
 
         {tab === "prose" && (
           <>
-            <div className="word-count">
-              {ctx.word_count.total} / {ctx.word_count.target} mots
-            </div>
-
-            <h3>Chapitres</h3>
-            <ul className="chapter-tree">
-              {Array.from({ length: ctx.config.chapter_count }, (_, i) => i + 1).map((n) => (
-                <li key={n} className={n === ctx.config.current_chapter ? "active" : ""}>
-                  <span className="dot" />
-                  Chapitre {n}
-                </li>
-              ))}
-            </ul>
+            {id && (
+              <ChapterRail
+                bookId={id}
+                onOpenChapter={setOpenChapter}
+                onAdvanced={() => void refresh()}
+              />
+            )}
 
             <h3>Commentaires</h3>
             <ul className="comment-list">
@@ -609,7 +628,23 @@ export function Editor() {
             )}
           </span>
         </div>
-        <EditorContent editor={editor} className="prose-editor" />
+        {chapterDetail ? (
+          <div className="chapter-view">
+            <div className="chapter-view-head">
+              <h2>{chapterDetail.title}</h2>
+              <button className="btn btn-ghost btn-sm" onClick={() => setOpenChapter(null)}>
+                Revenir au brouillon
+              </button>
+            </div>
+            <p className="muted">
+              Ébauche de chapitre ({chapterDetail.path}) — le brouillon que tu écris reste
+              Review/current.md.
+            </p>
+            <pre className="chapter-outline">{chapterDetail.content}</pre>
+          </div>
+        ) : (
+          <EditorContent editor={editor} className="prose-editor" />
+        )}
       </main>
 
       <aside className="chat-panel">

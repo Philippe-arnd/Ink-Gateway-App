@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod books;
+pub mod chapters;
 pub mod chat;
 pub mod comments;
 pub mod edit;
@@ -101,6 +102,10 @@ pub fn router() -> Router<AppState> {
             "/books/{id}/comments/{comment_id}/resolve",
             post(comments::resolve),
         )
+        .route("/books/{id}/chapters", get(chapters::list))
+        .route("/books/{id}/chapters/{number}", get(chapters::get))
+        .route("/books/{id}/chapters/advance", post(chapters::advance))
+        .route("/books/{id}/stats", get(chapters::stats))
         .route("/books/{id}/versions", get(versions::list))
         .route("/books/{id}/versions/restore", post(versions::restore))
         .route("/books/{id}/sessions/{tag}/diff", get(sessions::diff))

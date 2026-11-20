@@ -142,6 +142,43 @@ export interface BookContext {
   word_count: WordCount;
 }
 
+export interface ChapterSummary {
+  number: number;
+  title: string;
+  /** False for a chapter planned by `chapter_count` with no outline file. */
+  has_outline: boolean;
+  is_current: boolean;
+  word_count: number;
+}
+
+export interface ChapterList {
+  chapters: ChapterSummary[];
+  current_chapter: number;
+  chapter_count: number;
+}
+
+export interface ChapterDetail {
+  number: number;
+  path: string;
+  title: string;
+  content: string;
+  modified_today: boolean;
+}
+
+/** `ink_core::maintenance::book_status` — the whole progress payload. */
+export interface BookStats {
+  initialized: boolean;
+  complete: boolean;
+  current_chapter: number;
+  current_chapter_word_count: number;
+  words_per_chapter: number;
+  chapter_close_suggested: boolean;
+  total_word_count: number;
+  target_length: number;
+  words_per_session: number;
+  completion_ready: boolean;
+}
+
 export interface VersionEntry {
   commit: string;
   date: string;
@@ -230,6 +267,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ path, commit }),
     }),
+
+  listChapters: (id: string) => request<ChapterList>(`/books/${id}/chapters`),
+  getChapter: (id: string, number: number) =>
+    request<ChapterDetail>(`/books/${id}/chapters/${number}`),
+  advanceChapter: (id: string) =>
+    request<{ status: string }>(`/books/${id}/chapters/advance`, { method: "POST" }),
+  getStats: (id: string) => request<BookStats>(`/books/${id}/stats`),
 
   getApiKey: () => request<ApiKeyStatus>("/settings/api-key"),
   setApiKey: (provider: string, api_key: string, key_type: "api_key" | "oauth_token" = "api_key") =>
