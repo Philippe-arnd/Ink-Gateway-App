@@ -36,6 +36,19 @@ describe("parseSseFrame", () => {
     expect(parseSseFrame("event: done\ndata:")).toEqual({ event: "done", data: "" });
   });
 
+  it("accepts a named frame with no data field, which is how `done` arrives", () => {
+    // axum's Event::data("") writes no data line at all, so the terminal
+    // event is just `event: done`. Requiring a data field here would drop
+    // the end-of-stream signal — pinned on the server side by
+    // the_terminal_done_event_carries_no_data_field_at_all in api/src/agent.rs.
+    expect(parseSseFrame("event: done")).toEqual({ event: "done", data: "" });
+  });
+
+  it("still ignores a frame that is neither named nor carries data", () => {
+    expect(parseSseFrame("")).toBeNull();
+    expect(parseSseFrame("id: 7")).toBeNull();
+  });
+
   it("ignores comment/heartbeat lines", () => {
     expect(parseSseFrame(":keep-alive")).toBeNull();
     expect(parseSseFrame(":keep-alive\nevent: text\ndata: x")).toEqual({

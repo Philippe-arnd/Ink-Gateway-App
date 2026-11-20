@@ -18,6 +18,7 @@ import { IconArrowRight, IconCheck, IconComment, IconPencil, IconSparkles } from
 import { SessionModal } from "../components/SessionModal";
 import { DiffView } from "../components/DiffView";
 import { AccountMenu } from "../components/AccountMenu";
+import { ChatPanel } from "../features/chat/ChatPanel";
 
 // Maps an editor sidebar tab to the foundational file it edits — the other
 // four of `ink_core::edit::FOUNDATION_PATHS`' five allow-listed files
@@ -95,6 +96,10 @@ export function Editor() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  // The conversation is the primary AI surface; the intent-typed session with
+  // its diff-review ceremony lives beside it until the two are unified behind
+  // server-side threads.
+  const [aiTab, setAiTab] = useState<"chat" | "session">("chat");
   const [sessionPhase, setSessionPhase] = useState<"idle" | "running" | "error" | "diff">("idle");
   const [sessionLog, setSessionLog] = useState<ChatLine[]>([]);
   const [sessionTag, setSessionTag] = useState<string | null>(null);
@@ -399,6 +404,29 @@ export function Editor() {
     }
   }
 
+  /// Read at send time rather than captured when a panel opens, so the chip
+  /// can never disagree with what is actually selected.
+  const getSelection = useCallback(() => {
+    if (!editor) return null;
+    const { from, to } = editor.state.selection;
+    if (from === to) return null;
+    return {
+      start: posToCharOffset(from),
+      end: posToCharOffset(to),
+      text: editor.state.doc.textBetween(from, to, "\n"),
+    };
+  }, [editor]);
+
+  /// After the agent writes, the canvas has to re-read the file — but not at
+  /// the cost of the author's own unsaved typing.
+  const onManuscriptChanged = useCallback(() => {
+    if (pendingText.current !== null && pendingText.current !== lastSynced.current) {
+      setSaveState("dirty");
+      return;
+    }
+    void refresh();
+  }, [refresh]);
+
   // Follow the stream. Without this the author watched the top of the output
   // while generation continued off-screen.
   useEffect(() => {
@@ -561,8 +589,46 @@ export function Editor() {
       </main>
 
       <aside className="chat-panel">
-        <h3>Session d'écriture</h3>
+        <div className="ai-tabs" role="tablist" aria-label="Co-auteur IA">
+          <button
+            role="tab"
+            id="ai-tab-chat"
+            aria-selected={aiTab === "chat"}
+            aria-controls="ai-panel-chat"
+            className={aiTab === "chat" ? "active" : ""}
+            onClick={() => setAiTab("chat")}
+          >
+            Conversation
+          </button>
+          <button
+            role="tab"
+            id="ai-tab-session"
+            aria-selected={aiTab === "session"}
+            aria-controls="ai-panel-session"
+            className={aiTab === "session" ? "active" : ""}
+            onClick={() => setAiTab("session")}
+          >
+            Session relue
+          </button>
+        </div>
 
+        {aiTab === "chat" && id && (
+          <div role="tabpanel" id="ai-panel-chat" aria-labelledby="ai-tab-chat" className="ai-panel">
+            <ChatPanel
+              bookId={id}
+              getSelection={getSelection}
+              onManuscriptChanged={onManuscriptChanged}
+            />
+          </div>
+        )}
+
+        <div
+          role="tabpanel"
+          id="ai-panel-session"
+          aria-labelledby="ai-tab-session"
+          className="ai-panel"
+          hidden={aiTab !== "session"}
+        >
         {sessionPhase === "idle" && (
           <div className="session-idle">
             <p className="muted">
@@ -632,6 +698,7 @@ export function Editor() {
             </div>
           </div>
         )}
+        </div>
       </aside>
 
       {modalOpen && (
