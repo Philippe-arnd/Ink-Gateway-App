@@ -16,7 +16,9 @@
     {
       "matchPackageNames": ["*"],
       "matchUpdateTypes": ["major"],
-      "automerge": false,
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true,
       "addLabels": ["major-update"]
     }
   ],
