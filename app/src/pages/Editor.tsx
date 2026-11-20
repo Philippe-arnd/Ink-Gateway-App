@@ -100,6 +100,12 @@ export function Editor() {
   // its diff-review ceremony lives beside it until the two are unified behind
   // server-side threads.
   const [aiTab, setAiTab] = useState<"chat" | "session">("chat");
+  // "Distraction-free" is half the product's promise and had no
+  // implementation: the layout was a fixed three-pane grid with nothing
+  // collapsible. Zen drops both rails and centres the prose.
+  const [zen, setZen] = useState(false);
+  // Which pane is showing on a narrow screen, where all three can't fit.
+  const [mobilePane, setMobilePane] = useState<"book" | "prose" | "ai">("prose");
   const [sessionPhase, setSessionPhase] = useState<"idle" | "running" | "error" | "diff">("idle");
   const [sessionLog, setSessionLog] = useState<ChatLine[]>([]);
   const [sessionTag, setSessionTag] = useState<string | null>(null);
@@ -232,10 +238,20 @@ export function Editor() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key.toLowerCase() === "s") {
         e.preventDefault();
         flushSave();
+        return;
       }
+      // Cmd/Ctrl+. toggles zen; Escape only ever leaves it, so the key stays
+      // free for dialogs.
+      if (mod && e.key === ".") {
+        e.preventDefault();
+        setZen((z) => !z);
+        return;
+      }
+      if (e.key === "Escape") setZen(false);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -456,7 +472,7 @@ export function Editor() {
   const subdoc = (name: string) => ctx.global_material.find((f) => f.filename.toLowerCase().startsWith(name));
 
   return (
-    <div className="editor-layout">
+    <div className={`editor-layout${zen ? " zen" : ""}`} data-pane={mobilePane}>
       <aside className="sidebar">
         <div className="sidebar-brand-row">
           <Link to="/books" className="brand">
@@ -570,6 +586,14 @@ export function Editor() {
           <button onClick={addCommentToSelection} className="with-icon">
             <IconComment size={15} />
             Commenter la sélection
+          </button>
+          <button
+            className="with-icon"
+            onClick={() => setZen((z) => !z)}
+            aria-pressed={zen}
+            title={zen ? "Quitter le mode concentration (Échap)" : "Mode concentration (⌘.)"}
+          >
+            {zen ? "Quitter la concentration" : "Concentration"}
           </button>
           <span className={`save-state ${saveState}`} role="status" aria-live="polite">
             {saveState === "saving" && "Enregistrement…"}
@@ -700,6 +724,23 @@ export function Editor() {
         )}
         </div>
       </aside>
+
+      <nav className="pane-switch" aria-label="Affichage">
+        {([
+          ["book", "Livre"],
+          ["prose", "Texte"],
+          ["ai", "Agent"],
+        ] as const).map(([pane, label]) => (
+          <button
+            key={pane}
+            onClick={() => setMobilePane(pane)}
+            aria-current={mobilePane === pane}
+            className={mobilePane === pane ? "active" : ""}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
 
       {modalOpen && (
         <SessionModal

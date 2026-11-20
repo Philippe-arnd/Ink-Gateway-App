@@ -370,15 +370,32 @@ function ActionCard({ action }: { action: ToolAction }) {
 }
 
 /**
+ * The API's messages are English while the UI is French, so anything with a
+ * known code gets French copy and the raw message is kept only as a fallback
+ * for codes we don't recognise.
+ */
+const ERROR_COPY: Record<string, string> = {
+  no_provider_key:
+    "Aucune clé IA n'est configurée. Ajoute-en une pour écrire avec ton co-auteur.",
+  provider_auth: "Ta clé IA a été refusée par le fournisseur. Vérifie-la dans les réglages.",
+  rate_limited: "Trop de requêtes d'affilée.",
+  limit_reached: "L'agent a atteint sa limite d'outils pour ce tour.",
+  not_found: "Ce livre est introuvable.",
+  unauthenticated: "Ta session a expiré.",
+  network: "Connexion au serveur impossible.",
+};
+
+/**
  * Error states the author can act on. The common failures here are a missing
  * or rejected provider key, which previously surfaced as an undifferentiated
  * raw message with no route to Settings.
  */
 function ErrorMessage({ text, code }: { text: string; code?: string }) {
   const needsKey = code === "no_provider_key" || code === "provider_auth";
+  const copy = (code && ERROR_COPY[code]) ?? text;
   return (
     <div className="msg msg-error">
-      <p>{text}</p>
+      <p>{copy}</p>
       {needsKey && (
         <Link to="/settings" className="btn btn-primary btn-sm">
           Configurer une clé API
