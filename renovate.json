@@ -11,14 +11,14 @@
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "automerge": true,
       "automergeType": "pr",
-      "platformAutomerge": true
+      "platformAutomerge": false
     },
     {
       "matchPackageNames": ["*"],
       "matchUpdateTypes": ["major"],
       "automerge": true,
       "automergeType": "pr",
-      "platformAutomerge": true,
+      "platformAutomerge": false,
       "addLabels": ["major-update"]
     }
   ],
